@@ -12,14 +12,17 @@ This guide will help you deploy the Quantum Trade AI platform to your Vast.ai in
 
 ### SSH Connection
 
+**Direct SSH (Recommended):**
 ```bash
-# Replace with your actual SSH credentials from Vast.ai
-ssh root@50.217.254.167
-# Or if you have a different user:
-ssh user@50.217.254.167
+ssh -p 41221 root@50.217.254.167
 ```
 
-**Note:** Get your SSH credentials from the Vast.ai dashboard for your instance.
+**Proxy SSH (Alternative):**
+```bash
+ssh -p 16779 root@ssh3.vast.ai
+```
+
+**Note:** The SSH port is `41221` (not the default port 22). Use the direct SSH command above.
 
 ---
 
