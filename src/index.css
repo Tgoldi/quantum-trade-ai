@@ -1,0 +1,215 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+
+/* :root {
+  font-family: Inter, system-ui, Avenir, Helvetica, Arial, sans-serif;
+  line-height: 1.5;
+  font-weight: 400;
+
+  color-scheme: light dark;
+  color: rgba(255, 255, 255, 0.87);
+  background-color: #242424;
+
+  font-synthesis: none;
+  text-rendering: optimizeLegibility;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+a {
+  font-weight: 500;
+  color: #646cff;
+  text-decoration: inherit;
+}
+a:hover {
+  color: #535bf2;
+}
+
+body {
+  margin: 0;
+  display: flex;
+  place-items: center;
+  min-width: 320px;
+  min-height: 100vh;
+}
+
+h1 {
+  font-size: 3.2em;
+  line-height: 1.1;
+}
+
+button {
+  border-radius: 8px;
+  border: 1px solid transparent;
+  padding: 0.6em 1.2em;
+  font-size: 1em;
+  font-weight: 500;
+  font-family: inherit;
+  background-color: #1a1a1a;
+  cursor: pointer;
+  transition: border-color 0.25s;
+}
+button:hover {
+  border-color: #646cff;
+}
+button:focus,
+button:focus-visible {
+  outline: 4px auto -webkit-focus-ring-color;
+}
+
+@media (prefers-color-scheme: light) {
+  :root {
+    color: #213547;
+    background-color: #ffffff;
+  }
+  a:hover {
+    color: #747bff;
+  }
+  button {
+    background-color: #f9f9f9;
+  }
+} */
+
+
+
+@layer base {
+  :root {
+    /* Simplified Color Palette - Dark Theme Focus */
+    --background: 222 47% 3%;
+    --foreground: 210 20% 98%;
+    --card: 222 47% 5%;
+    --card-foreground: 210 20% 98%;
+    --popover: 222 47% 7%;
+    --popover-foreground: 210 20% 98%;
+    --primary: 217 91% 60%;
+    --primary-foreground: 210 20% 98%;
+    --secondary: 215 25% 15%;
+    --secondary-foreground: 210 20% 98%;
+    --muted: 215 25% 15%;
+    --muted-foreground: 215 16% 47%;
+    --accent: 217 91% 60%;
+    --accent-foreground: 210 20% 98%;
+    --destructive: 0 73% 60%;
+    --destructive-foreground: 210 20% 98%;
+    --border: 215 25% 15%;
+    --input: 215 25% 15%;
+    --ring: 217 91% 60%;
+    --radius: 0.5rem;
+    
+    /* Simplified Chart Colors */
+    --chart-1: 217 91% 60%;
+    --chart-2: 142 76% 45%;
+    --chart-3: 340 82% 52%;
+    --chart-4: 48 96% 53%;
+    --chart-5: 280 70% 60%;
+    
+    /* Sidebar Colors */
+    --sidebar-background: 222 47% 2%;
+    --sidebar-foreground: 210 20% 85%;
+    --sidebar-primary: 217 91% 60%;
+    --sidebar-primary-foreground: 210 20% 98%;
+    --sidebar-accent: 215 25% 12%;
+    --sidebar-accent-foreground: 210 20% 85%;
+    --sidebar-border: 215 25% 12%;
+    --sidebar-ring: 217 91% 60%;
+  }
+}
+
+
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+  
+  body {
+    @apply bg-slate-950 text-slate-200 antialiased;
+    font-feature-settings: "rlig" 1, "calt" 1;
+  }
+  
+  /* Improved scrollbar styling */
+  ::-webkit-scrollbar {
+    width: 8px;
+    height: 8px;
+  }
+  
+  ::-webkit-scrollbar-track {
+    @apply bg-slate-900;
+  }
+  
+  ::-webkit-scrollbar-thumb {
+    @apply bg-slate-700 rounded-full;
+  }
+  
+  ::-webkit-scrollbar-thumb:hover {
+    @apply bg-slate-600;
+  }
+}
+
+@layer utilities {
+  /* Responsive spacing utilities */
+  .section-spacing {
+    @apply space-y-4 sm:space-y-5 md:space-y-6;
+  }
+  
+  .card-spacing {
+    @apply p-3 sm:p-4 md:p-5 lg:p-6;
+  }
+  
+  /* Responsive text styles */
+  .page-title {
+    @apply text-xl sm:text-2xl font-bold text-slate-100;
+  }
+  
+  .page-description {
+    @apply text-xs sm:text-sm text-slate-400 mt-1;
+  }
+  
+  .section-title {
+    @apply text-base sm:text-lg font-semibold text-slate-100;
+  }
+  
+  /* Card styles */
+  .card-simple {
+    @apply bg-slate-900/50 border border-slate-800/50 rounded-lg hover:border-slate-700/50 transition-colors;
+  }
+  
+  /* Responsive grid utilities */
+  .grid-responsive-2 {
+    @apply grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4;
+  }
+  
+  .grid-responsive-3 {
+    @apply grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4;
+  }
+  
+  .grid-responsive-4 {
+    @apply grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3 sm:gap-4;
+  }
+  
+  /* Mobile-first container */
+  .container-responsive {
+    @apply w-full px-3 sm:px-4 md:px-5 lg:px-6 mx-auto;
+  }
+  
+  /* Responsive icon sizing */
+  .icon-sm-responsive {
+    @apply w-3.5 h-3.5 sm:w-4 sm:h-4;
+  }
+  
+  .icon-md-responsive {
+    @apply w-4 h-4 sm:w-5 sm:h-5;
+  }
+  
+  /* Hide on mobile, show on tablet+ */
+  .hide-mobile {
+    @apply hidden md:block;
+  }
+  
+  /* Show on mobile only */
+  .show-mobile {
+    @apply block md:hidden;
+  }
+}

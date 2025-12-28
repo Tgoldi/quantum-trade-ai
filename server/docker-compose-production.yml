@@ -1,0 +1,74 @@
+# High-Performance Multi-LLM AI Trading System
+# Optimized for maximum speed and reliability
+
+services:
+  # Frontend React app with nginx
+  frontend:
+    build:
+      context: ..
+      dockerfile: Dockerfile.frontend
+    container_name: ai-trading-frontend
+    ports:
+      - "8081:80"
+    environment:
+      - NODE_ENV=production
+    depends_on:
+      - trading-backend
+    deploy:
+      resources:
+        limits:
+          memory: 512M
+          cpus: '1.0'
+        reservations:
+          memory: 256M
+          cpus: '0.5'
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+
+  # Trading backend service - PERFORMANCE OPTIMIZED
+  trading-backend:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: ai-trading-backend
+    ports:
+      - "3001:3001"
+      - "8080:8080"
+    environment:
+      - NODE_ENV=production
+      - OLLAMA_URL=http://host.docker.internal:11434
+      - ALPACA_API_KEY=${ALPACA_API_KEY}
+      - ALPACA_SECRET_KEY=${ALPACA_SECRET_KEY}
+      - FRONTEND_URL=http://localhost
+      - DOCKER=true
+      # Performance optimizations
+      - NODE_OPTIONS=--max-old-space-size=4096
+      - UV_THREADPOOL_SIZE=16
+    volumes:
+      - ./.env:/app/.env:ro
+    deploy:
+      resources:
+        limits:
+          memory: 2G          # Allocate 2GB RAM
+          cpus: '4.0'         # Use 4 CPU cores
+        reservations:
+          memory: 1G          # Reserve 1GB RAM
+          cpus: '2.0'         # Reserve 2 CPU cores
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:3001/api/health"]
+      interval: 15s           # Check more frequently
+      timeout: 5s
+      retries: 3
+      start_period: 30s
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+
+networks:
+  default:
+    name: ai-trading-network

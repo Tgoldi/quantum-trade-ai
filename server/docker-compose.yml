@@ -1,0 +1,81 @@
+# Docker Compose for Multi-LLM AI Trading System
+version: '3.8'
+
+services:
+  # Ollama service with optimized settings for multiple models
+  ollama:
+    image: ollama/ollama:latest
+    container_name: trading-ollama
+    ports:
+      - "11434:11434"
+    volumes:
+      - ollama_data:/root/.ollama
+      - ./docker-init.sh:/init.sh
+    environment:
+      - OLLAMA_HOST=0.0.0.0:11434
+      - OLLAMA_ORIGINS=*
+      - OLLAMA_NUM_PARALLEL=8          # Allow 8 parallel requests
+      - OLLAMA_MAX_LOADED_MODELS=4     # Keep all 4 models in memory
+      - OLLAMA_FLASH_ATTENTION=1       # Enable flash attention for speed
+      - OLLAMA_GPU_MEMORY_FRACTION=0.9 # Use 90% of GPU memory
+      - OLLAMA_CONCURRENT_REQUESTS=8   # Handle 8 concurrent requests
+    deploy:
+      resources:
+        limits:
+          memory: 12G                  # Allocate 12GB RAM for 4 models
+          cpus: '6.0'                  # Use 6 CPU cores
+        reservations:
+          memory: 8G                   # Reserve 8GB RAM
+          cpus: '4.0'                  # Reserve 4 CPU cores
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:11434/api/tags"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 120s               # Longer startup time for model loading
+    command: >
+      sh -c "
+        ollama serve &
+        sleep 10 &&
+        ollama pull llama3.1:8b &
+        ollama pull mistral:7b &
+        ollama pull phi3:mini &
+        ollama pull codellama:13b &
+        wait
+      "
+
+  # Trading backend service
+  trading-backend:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: trading-backend
+    ports:
+      - "3001:3001"
+      - "8080:8080"
+    depends_on:
+      ollama:
+        condition: service_healthy
+    environment:
+      - NODE_ENV=production
+      - OLLAMA_URL=http://ollama:11434
+      - ALPACA_API_KEY=${ALPACA_API_KEY}
+      - ALPACA_SECRET_KEY=${ALPACA_SECRET_KEY}
+      - FRONTEND_URL=http://localhost:5173
+    volumes:
+      - ./.env:/app/.env:ro
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:3001/api/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+volumes:
+  ollama_data:
+    driver: local
+
+networks:
+  default:
+    name: trading-network

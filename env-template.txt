@@ -1,0 +1,8 @@
+a# Environment Variables for Real-time Stock Data
+# Copy this content to your .env.local file
+
+# Finnhub API Key (Primary - Free tier: 60 calls/minute)
+REACT_APP_FINNHUB_API_KEY=your_finnhub_api_key_here
+
+# Alpha Vantage API Key (Backup - Free tier: 5 calls/minute)  
+REACT_APP_ALPHA_VANTAGE_API_KEY=your_alpha_vantage_api_key_here

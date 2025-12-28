@@ -1,0 +1,376 @@
+/* Enhanced Navbar Styles */
+
+/* Force dark theme for all sidebar components */
+[data-sidebar] {
+  background-color: #020617 !important;
+}
+
+[data-sidebar="sidebar"] {
+  background-color: #020617 !important;
+}
+
+[data-sidebar="content"] {
+  background-color: #020617 !important;
+}
+
+[data-sidebar="group"] {
+  background-color: #020617 !important;
+}
+
+[data-sidebar="header"] {
+  background-color: #0f172a !important;
+}
+
+[data-sidebar="footer"] {
+  background-color: #0f172a !important;
+}
+
+/* Override any white backgrounds */
+.bg-white {
+  background-color: #020617 !important;
+}
+
+.bg-gray-50 {
+  background-color: #020617 !important;
+}
+
+.bg-slate-50 {
+  background-color: #020617 !important;
+}
+
+/* Ensure sidebar stays dark */
+.sidebar {
+  background-color: #020617 !important;
+}
+
+/* Override any light backgrounds in the navigation area */
+nav, .nav, .navigation {
+  background-color: #020617 !important;
+}
+
+/* Custom CSS Variables for Dynamic Theming */
+:root {
+  --navbar-primary: #3b82f6;
+  --navbar-secondary: #8b5cf6;
+  --navbar-accent: #06b6d4;
+  --navbar-success: #10b981;
+  --navbar-warning: #f59e0b;
+  --navbar-danger: #ef4444;
+}
+
+/* Smooth scrollbar for navigation */
+.sidebar-content::-webkit-scrollbar {
+    width: 6px;
+}
+
+.sidebar-content::-webkit-scrollbar-track {
+    background: rgba(15, 23, 42, 0.3);
+    border-radius: 3px;
+}
+
+.sidebar-content::-webkit-scrollbar-thumb {
+    background: linear-gradient(135deg, rgba(59, 130, 246, 0.4), rgba(139, 92, 246, 0.4));
+    border-radius: 3px;
+    border: 1px solid rgba(148, 163, 184, 0.1);
+}
+
+.sidebar-content::-webkit-scrollbar-thumb:hover {
+    background: linear-gradient(135deg, rgba(59, 130, 246, 0.6), rgba(139, 92, 246, 0.6));
+}
+
+/* Glow effect for active navigation items */
+.nav-item-active {
+    box-shadow: 0 0 20px rgba(59, 130, 246, 0.15);
+}
+
+/* Pulse animation for notification badges */
+@keyframes pulse-notification {
+
+    0%,
+    100% {
+        opacity: 1;
+        transform: scale(1);
+    }
+
+    50% {
+        opacity: 0.8;
+        transform: scale(1.05);
+    }
+}
+
+.notification-badge {
+    animation: pulse-notification 2s ease-in-out infinite;
+}
+
+/* Smooth transitions for all interactive elements */
+.nav-transition {
+    transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+/* Backdrop blur effect for mobile sidebar */
+.mobile-sidebar-backdrop {
+    backdrop-filter: blur(8px);
+    background: rgba(0, 0, 0, 0.5);
+}
+
+/* Enhanced focus states for accessibility */
+.nav-item:focus-visible {
+    outline: 2px solid #3b82f6;
+    outline-offset: 2px;
+}
+
+/* Gradient text effect for active items */
+.gradient-text {
+    background: linear-gradient(135deg, #3b82f6, #1d4ed8);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+}
+
+/* Shimmer effect for loading states */
+@keyframes shimmer {
+    0% {
+        background-position: -200px 0;
+    }
+
+    100% {
+        background-position: calc(200px + 100%) 0;
+    }
+}
+
+.shimmer {
+    background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.1), transparent);
+    background-size: 200px 100%;
+    animation: shimmer 1.5s infinite;
+}
+
+/* Enhanced hover states */
+.nav-item:hover {
+    transform: translateX(2px);
+}
+
+.nav-item:active {
+    transform: translateX(1px) scale(0.98);
+}
+
+/* Status indicator animations */
+@keyframes status-pulse {
+
+    0%,
+    100% {
+        opacity: 1;
+        transform: scale(1);
+    }
+
+    50% {
+        opacity: 0.7;
+        transform: scale(1.1);
+    }
+}
+
+.status-indicator {
+    animation: status-pulse 2s ease-in-out infinite;
+}
+
+/* Smooth width transitions for collapsible sidebar */
+.sidebar-transition {
+    transition: width 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+/* Enhanced shadow effects */
+.nav-shadow {
+    box-shadow:
+        0 1px 3px 0 rgba(0, 0, 0, 0.1),
+        0 1px 2px 0 rgba(0, 0, 0, 0.06);
+}
+
+.nav-shadow-lg {
+    box-shadow:
+        0 10px 15px -3px rgba(0, 0, 0, 0.1),
+        0 4px 6px -2px rgba(0, 0, 0, 0.05);
+}
+
+/* Advanced glassmorphism effects */
+.glassmorphism {
+    background: rgba(15, 23, 42, 0.8);
+    backdrop-filter: blur(16px);
+    -webkit-backdrop-filter: blur(16px);
+    border: 1px solid rgba(148, 163, 184, 0.1);
+}
+
+.glassmorphism-light {
+    background: rgba(30, 41, 59, 0.6);
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+    border: 1px solid rgba(148, 163, 184, 0.08);
+}
+
+/* Gradient text effects */
+.gradient-text-primary {
+    background: linear-gradient(135deg, var(--navbar-primary), var(--navbar-secondary));
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+}
+
+.gradient-text-accent {
+    background: linear-gradient(135deg, var(--navbar-secondary), var(--navbar-accent));
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+}
+
+/* Advanced hover effects */
+.nav-item-hover {
+    position: relative;
+    overflow: hidden;
+}
+
+.nav-item-hover::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: -100%;
+    width: 100%;
+    height: 100%;
+    background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.1), transparent);
+    transition: left 0.5s ease;
+}
+
+.nav-item-hover:hover::before {
+    left: 100%;
+}
+
+/* Floating animation for badges */
+@keyframes float {
+
+    0%,
+    100% {
+        transform: translateY(0px);
+    }
+
+    50% {
+        transform: translateY(-2px);
+    }
+}
+
+.floating-badge {
+    animation: float 3s ease-in-out infinite;
+}
+
+/* Ripple effect for buttons */
+.ripple {
+    position: relative;
+    overflow: hidden;
+}
+
+.ripple::after {
+    content: '';
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    width: 0;
+    height: 0;
+    border-radius: 50%;
+    background: rgba(255, 255, 255, 0.3);
+    transform: translate(-50%, -50%);
+    transition: width 0.6s, height 0.6s;
+}
+
+.ripple:active::after {
+    width: 300px;
+    height: 300px;
+}
+
+/* Neon glow effects */
+.neon-blue {
+    box-shadow:
+        0 0 5px var(--navbar-primary),
+        0 0 10px var(--navbar-primary),
+        0 0 15px var(--navbar-primary),
+        0 0 20px var(--navbar-primary);
+}
+
+.neon-purple {
+    box-shadow:
+        0 0 5px var(--navbar-secondary),
+        0 0 10px var(--navbar-secondary),
+        0 0 15px var(--navbar-secondary),
+        0 0 20px var(--navbar-secondary);
+}
+
+/* Particle background effect */
+@keyframes particles {
+    0% {
+        transform: translateY(0px) rotate(0deg);
+        opacity: 1;
+    }
+
+    100% {
+        transform: translateY(-100vh) rotate(360deg);
+        opacity: 0;
+    }
+}
+
+.particles {
+    position: absolute;
+    width: 2px;
+    height: 2px;
+    background: var(--navbar-primary);
+    animation: particles 10s linear infinite;
+}
+
+/* Advanced loading states */
+.skeleton-loader {
+    background: linear-gradient(90deg,
+            rgba(148, 163, 184, 0.1) 25%,
+            rgba(148, 163, 184, 0.2) 50%,
+            rgba(148, 163, 184, 0.1) 75%);
+    background-size: 200% 100%;
+    animation: loading 1.5s infinite;
+}
+
+@keyframes loading {
+    0% {
+        background-position: 200% 0;
+    }
+
+    100% {
+        background-position: -200% 0;
+    }
+}
+
+/* Responsive design helpers */
+@media (max-width: 768px) {
+    .mobile-nav-item {
+        padding: 0.75rem;
+        font-size: 0.875rem;
+    }
+
+    .mobile-nav-icon {
+        width: 1.25rem;
+        height: 1.25rem;
+    }
+}
+
+/* Dark mode enhancements */
+@media (prefers-color-scheme: dark) {
+    :root {
+        --navbar-bg-opacity: 0.95;
+        --navbar-border-opacity: 0.1;
+        --navbar-text-opacity: 0.9;
+    }
+}
+
+/* Reduced motion preferences */
+@media (prefers-reduced-motion: reduce) {
+
+    .nav-transition,
+    .sidebar-transition,
+    .shimmer,
+    .floating-badge,
+    .particles {
+        animation: none;
+        transition: none;
+    }
+}
