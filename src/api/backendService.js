@@ -3,10 +3,27 @@
 
 class BackendService {
     constructor() {
-        // In production, use relative URLs (nginx proxy), in development use localhost
-        const isProduction = import.meta.env.NODE_ENV === 'production';
-        this.baseUrl = isProduction ? '/api' : 'http://localhost:3001/api';
-        this.wsUrl = isProduction ? 'ws://localhost/ws' : 'ws://localhost:3001/ws';
+        // Determine backend URL based on environment
+        // Check if we're on RunPod (proxy domain)
+        const isRunPod = window.location.hostname.includes('proxy.runpod.net') || window.location.hostname.includes('runpod.io');
+        const isProduction = import.meta.env.NODE_ENV === 'production' || isRunPod;
+        
+        // Backend port (3002 on RunPod, 3001 locally)
+        const backendPort = import.meta.env.VITE_API_PORT || (isRunPod ? '3002' : '3001');
+        
+        if (isRunPod) {
+            // On RunPod, use relative URLs - proxy server handles /api routing
+            this.baseUrl = '/api';
+            this.wsUrl = `ws://${window.location.hostname.replace('8080', backendPort)}/ws`;
+        } else if (isProduction) {
+            // Production with nginx proxy
+            this.baseUrl = '/api';
+            this.wsUrl = `${window.location.protocol === 'https:' ? 'wss:' : 'ws:'}//${window.location.host}/ws`;
+        } else {
+            // Development
+            this.baseUrl = `http://localhost:${backendPort}/api`;
+            this.wsUrl = `ws://localhost:${backendPort}/ws`;
+        }
         this.ws = null;
         this.subscribers = new Map();
         this.reconnectAttempts = 0;
@@ -342,7 +359,8 @@ class BackendService {
     }
 
     // Get portfolio summary
-    async getPortfolioSummary() {
+    // Get portfolio summary (IB version - different from getPortfolioSummary with portfolioId)
+    async getPortfolioSummaryIB() {
         // Try IB first, then fall back to local
         try {
             const ibPortfolio = await this.makeRequest('/portfolio/ib-live');
@@ -401,8 +419,8 @@ class BackendService {
         return await this.makeRequest(`/orders?status=${status}&limit=${limit}`);
     }
 
-    // Get historical data (placeholder - can be extended)
-    async getHistoricalData(symbol, timeframe = 'D', limit = 100) {
+    // Get historical data (alternative version with different timeframe format)
+    async getHistoricalDataAlt(symbol, timeframe = 'D', limit = 100) {
         // For now, return mock data since we haven't implemented historical endpoint
         // This can be extended later
         console.log(`Historical data requested for ${symbol} (${timeframe})`);
