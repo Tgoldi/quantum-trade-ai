@@ -1,9 +1,14 @@
 // Simple proxy server for RunPod
 // Proxies /api requests to backend and serves frontend
 
-const express = require('express');
-const http = require('http');
-const path = require('path');
+import express from 'express';
+import http from 'http';
+import path from 'path';
+import { fileURLToPath } from 'url';
+import { dirname } from 'path';
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = dirname(__filename);
 
 const app = express();
 const PORT = 8080;
