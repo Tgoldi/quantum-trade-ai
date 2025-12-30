@@ -21,15 +21,15 @@ app.use(express.urlencoded({ extended: true }));
 
 // Proxy API requests to backend
 app.use('/api', async (req, res) => {
-    // req.url includes /api, so we keep it as-is for the backend
-    const backendPath = req.url; // This will be /api/health, /api/auth/register, etc.
+    // Express strips /api from req.url, so we need to add it back
+    const backendPath = `/api${req.url}`; // Add /api prefix back
     const targetUrl = `${BACKEND_URL}${backendPath}`;
     console.log(`[PROXY] ${req.method} ${req.url} -> ${targetUrl}`);
     
     const options = {
         hostname: 'localhost',
         port: BACKEND_PORT,
-        path: backendPath, // Keep /api prefix for backend
+        path: backendPath, // /api/health, /api/auth/register, etc.
         method: req.method,
         headers: {
             ...req.headers,
