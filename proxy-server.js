@@ -56,14 +56,17 @@ app.use('/api', async (req, res) => {
     req.pipe(proxyReq);
 });
 
-// Serve frontend static files
+// Serve frontend static files (must be before catch-all)
 app.use(express.static(path.join(__dirname, 'dist')));
 
-// SPA fallback - serve index.html for all non-API routes
-app.get('*', (req, res) => {
-    if (!req.path.startsWith('/api')) {
-        res.sendFile(path.join(__dirname, 'dist', 'index.html'));
+// SPA fallback - serve index.html for all non-API, non-static routes
+app.use((req, res, next) => {
+    // Skip API routes and static file requests
+    if (req.path.startsWith('/api') || req.path.startsWith('/assets')) {
+        return next();
     }
+    // Serve index.html for SPA routing
+    res.sendFile(path.join(__dirname, 'dist', 'index.html'));
 });
 
 app.listen(PORT, () => {
