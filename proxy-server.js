@@ -3,6 +3,8 @@
 
 import express from 'express';
 import http from 'http';
+import { createServer } from 'http';
+import { WebSocketServer, WebSocket } from 'ws';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import { dirname } from 'path';
@@ -77,7 +79,59 @@ app.use((req, res, next) => {
     res.sendFile(path.join(__dirname, 'dist', 'index.html'));
 });
 
-app.listen(PORT, () => {
+// Create HTTP server
+const server = createServer(app);
+
+// WebSocket proxy for /ws endpoint
+const wss = new WebSocketServer({ server, path: '/ws' });
+
+wss.on('connection', (clientWs, req) => {
+    console.log('[WS PROXY] Client connected');
+    
+    // Connect to backend WebSocket
+    const backendWs = new WebSocket(`ws://localhost:${BACKEND_PORT}/ws`);
+    
+    backendWs.on('open', () => {
+        console.log('[WS PROXY] Connected to backend WebSocket');
+    });
+    
+    // Forward messages from client to backend
+    clientWs.on('message', (message) => {
+        if (backendWs.readyState === WebSocket.OPEN) {
+            backendWs.send(message);
+        }
+    });
+    
+    // Forward messages from backend to client
+    backendWs.on('message', (message) => {
+        if (clientWs.readyState === WebSocket.OPEN) {
+            clientWs.send(message);
+        }
+    });
+    
+    // Handle disconnections
+    clientWs.on('close', () => {
+        console.log('[WS PROXY] Client disconnected');
+        backendWs.close();
+    });
+    
+    backendWs.on('close', () => {
+        console.log('[WS PROXY] Backend disconnected');
+        clientWs.close();
+    });
+    
+    backendWs.on('error', (err) => {
+        console.error('[WS PROXY] Backend error:', err.message);
+        clientWs.close();
+    });
+    
+    clientWs.on('error', (err) => {
+        console.error('[WS PROXY] Client error:', err.message);
+        backendWs.close();
+    });
+});
+
+server.listen(PORT, () => {
     console.log(`
 ╔══════════════════════════════════════════════════════════╗
 ║                                                          ║
@@ -85,6 +139,7 @@ app.listen(PORT, () => {
 ║                                                          ║
 ║  Frontend:      http://localhost:${PORT}              ║
 ║  Backend Proxy: http://localhost:${PORT}/api -> :${BACKEND_PORT} ║
+║  WebSocket:     ws://localhost:${PORT}/ws -> :${BACKEND_PORT} ║
 ║  Status:        ✅ RUNNING                            ║
 ║                                                          ║
 ╚══════════════════════════════════════════════════════════╝

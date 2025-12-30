@@ -14,7 +14,10 @@ class BackendService {
         if (isRunPod) {
             // On RunPod, use relative URLs - proxy server handles /api routing
             this.baseUrl = '/api';
-            this.wsUrl = `ws://${window.location.hostname.replace('8080', backendPort)}/ws`;
+            // Use wss:// for HTTPS pages, ws:// for HTTP
+            const wsProtocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+            // For RunPod, proxy WebSocket through the same domain
+            this.wsUrl = `${wsProtocol}//${window.location.host}/ws`;
         } else if (isProduction) {
             // Production with nginx proxy
             this.baseUrl = '/api';
