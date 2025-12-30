@@ -21,13 +21,15 @@ app.use(express.urlencoded({ extended: true }));
 
 // Proxy API requests to backend
 app.use('/api', async (req, res) => {
-    const targetUrl = `${BACKEND_URL}${req.url}`;
+    // req.url includes /api, so we keep it as-is for the backend
+    const backendPath = req.url; // This will be /api/health, /api/auth/register, etc.
+    const targetUrl = `${BACKEND_URL}${backendPath}`;
     console.log(`[PROXY] ${req.method} ${req.url} -> ${targetUrl}`);
     
     const options = {
         hostname: 'localhost',
         port: BACKEND_PORT,
-        path: req.url,
+        path: backendPath, // Keep /api prefix for backend
         method: req.method,
         headers: {
             ...req.headers,
@@ -39,7 +41,9 @@ app.use('/api', async (req, res) => {
     delete options.headers['host'];
     
     const proxyReq = http.request(options, (proxyRes) => {
-        res.writeHead(proxyRes.statusCode, proxyRes.headers);
+        // Copy CORS headers from backend response
+        const headers = { ...proxyRes.headers };
+        res.writeHead(proxyRes.statusCode, headers);
         proxyRes.pipe(res);
     });
     
@@ -48,12 +52,16 @@ app.use('/api', async (req, res) => {
         res.status(500).json({ error: 'Backend proxy error', message: err.message });
     });
     
-    // Forward request body
+    // Forward request body for POST/PUT requests
     if (req.body && Object.keys(req.body).length > 0) {
-        proxyReq.write(JSON.stringify(req.body));
+        const bodyData = JSON.stringify(req.body);
+        proxyReq.setHeader('Content-Type', 'application/json');
+        proxyReq.setHeader('Content-Length', Buffer.byteLength(bodyData));
+        proxyReq.write(bodyData);
     }
     
-    req.pipe(proxyReq);
+    // End the request
+    proxyReq.end();
 });
 
 // Serve frontend static files (must be before catch-all)
