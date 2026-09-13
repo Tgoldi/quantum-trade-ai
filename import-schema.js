@@ -4,10 +4,15 @@
 const { createClient } = require('@supabase/supabase-js');
 const fs = require('fs');
 
-const supabaseUrl = 'https://ngwbwanpamfqoaitofih.supabase.co';
-const supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im5nd2J3YW5wYW1mcW9haXRvZmloIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjE1MDMzNDgsImV4cCI6MjA3NzA3OTM0OH0.6kifg9e7LDp2uacxSCsDKSEdFcdpMPzFen1oMgS3iuI';
+const supabaseUrl = process.env.SUPABASE_URL;
+const supabaseServiceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
 
-const supabase = createClient(supabaseUrl, supabaseKey);
+if (!supabaseUrl || !supabaseServiceRoleKey) {
+    console.error('❌ Error: SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY environment variables are required');
+    process.exit(1);
+}
+
+const supabase = createClient(supabaseUrl, supabaseServiceRoleKey);
 
 async function importSchema() {
     try {
@@ -58,7 +63,7 @@ async function importSchema() {
 // For now, you'll need to import the schema manually through the Supabase dashboard
 console.log('📝 Manual Import Instructions:');
 console.log('   1. Go to https://supabase.com/dashboard');
-console.log('   2. Select your project: ngwbwanpamfqoaitofih');
+console.log('   2. Select your project');
 console.log('   3. Go to SQL Editor');
 console.log('   4. Copy the contents of supabase-schema.sql');
 console.log('   5. Paste and run the SQL');

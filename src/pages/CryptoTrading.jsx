@@ -171,59 +171,23 @@ export default function CryptoTrading() {
       setPositions(positionData);
     } catch (error) {
       console.error("Error loading crypto data:", error);
+      setCryptos([]);
+      setPositions([]);
     }
     setLoading(false);
   };
 
   const handleTrade = (crypto, action) => {
+    if (!isDataAvailable) {
+      alert("Cannot execute trades with demo data. Please wait for real market data to load.");
+      return;
+    }
     console.log(`${action.toUpperCase()} ${crypto.symbol}`);
     // Integrate with order management
   };
 
-  // Mock data if none exists
-  const mockCryptos = cryptos.length > 0 ? cryptos : [
-    {
-      symbol: "BTC",
-      name: "Bitcoin",
-      price_usd: 43250.75,
-      price_btc: 1.0,
-      market_cap: 847000000000,
-      volume_24h: 28400000000,
-      change_24h: 2.45,
-      change_7d: -1.23,
-      market_cap_rank: 1,
-      fear_greed_index: 68,
-      circulating_supply: 19600000,
-      max_supply: 21000000
-    },
-    {
-      symbol: "ETH",
-      name: "Ethereum",
-      price_usd: 2650.30,
-      price_btc: 0.061,
-      market_cap: 318000000000,
-      volume_24h: 15200000000,
-      change_24h: 3.12,
-      change_7d: 0.89,
-      market_cap_rank: 2,
-      fear_greed_index: 72,
-      staking_apy: 4.2,
-      defi_protocols: ["Uniswap", "Compound", "Aave"]
-    },
-    {
-      symbol: "SOL",
-      name: "Solana",
-      price_usd: 98.45,
-      price_btc: 0.00228,
-      market_cap: 42800000000,
-      volume_24h: 2100000000,
-      change_24h: 5.67,
-      change_7d: 12.34,
-      market_cap_rank: 5,
-      fear_greed_index: 78,
-      staking_apy: 7.1
-    }
-  ];
+  const isDataAvailable = cryptos.length > 0;
+  const displayCryptos = cryptos;
 
   const defiProtocols = [
     { name: "Uniswap V3", category: "DEX", apy: "12.5", tvl: "4.2B", position: "2,500" },
@@ -327,18 +291,29 @@ export default function CryptoTrading() {
           </TabsList>
 
           <TabsContent value="markets" className="space-y-8">
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-              <AnimatePresence>
-                {mockCryptos.map((crypto, index) => (
-                  <CryptoCard
-                    key={crypto.symbol}
-                    crypto={crypto}
-                    index={index}
-                    onTrade={handleTrade}
-                  />
-                ))}
-              </AnimatePresence>
-            </div>
+            {!isDataAvailable ? (
+              <Card className="bg-slate-900/60 backdrop-blur-xl border-slate-800/30">
+                <CardContent className="p-8">
+                  <div className="text-center space-y-4">
+                    <p className="text-red-400 font-semibold text-lg">Unable to Load Market Data</p>
+                    <p className="text-slate-400">We encountered an error fetching real-time market data. Please refresh the page or try again later.</p>
+                  </div>
+                </CardContent>
+              </Card>
+            ) : (
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                <AnimatePresence>
+                  {displayCryptos.map((crypto, index) => (
+                    <CryptoCard
+                      key={crypto.symbol}
+                      crypto={crypto}
+                      index={index}
+                      onTrade={handleTrade}
+                    />
+                  ))}
+                </AnimatePresence>
+              </div>
+            )}
           </TabsContent>
 
           <TabsContent value="portfolio" className="space-y-8">
@@ -437,42 +412,53 @@ export default function CryptoTrading() {
           </TabsContent>
 
           <TabsContent value="staking" className="space-y-8">
-            <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
-              {mockCryptos.filter(c => c.staking_apy).map((crypto, index) => (
-                <Card key={crypto.symbol} className="bg-slate-900/60 backdrop-blur-xl border-slate-800/30">
-                  <CardHeader>
-                    <div className="flex items-center gap-3">
-                      <div className="w-10 h-10 bg-gradient-to-r from-purple-500 to-pink-500 rounded-lg flex items-center justify-center">
-                        {crypto.symbol === 'ETH' ? <Coins className="w-5 h-5 text-white" /> : <Shield className="w-5 h-5 text-white" />}
+            {!isDataAvailable ? (
+              <Card className="bg-slate-900/60 backdrop-blur-xl border-slate-800/30">
+                <CardContent className="p-8">
+                  <div className="text-center space-y-4">
+                    <p className="text-red-400 font-semibold text-lg">Unable to Load Staking Data</p>
+                    <p className="text-slate-400">We encountered an error fetching real-time staking data. Please refresh the page or try again later.</p>
+                  </div>
+                </CardContent>
+              </Card>
+            ) : (
+              <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
+                {displayCryptos.filter(c => c.staking_apy).map((crypto, index) => (
+                  <Card key={crypto.symbol} className="bg-slate-900/60 backdrop-blur-xl border-slate-800/30">
+                    <CardHeader>
+                      <div className="flex items-center gap-3">
+                        <div className="w-10 h-10 bg-gradient-to-r from-purple-500 to-pink-500 rounded-lg flex items-center justify-center">
+                          {crypto.symbol === 'ETH' ? <Coins className="w-5 h-5 text-white" /> : <Shield className="w-5 h-5 text-white" />}
+                        </div>
+                        <div>
+                          <h3 className="text-white font-semibold">{crypto.symbol} Staking</h3>
+                          <p className="text-slate-400 text-sm">Earn {crypto.staking_apy}% APY</p>
+                        </div>
                       </div>
-                      <div>
-                        <h3 className="text-white font-semibold">{crypto.symbol} Staking</h3>
-                        <p className="text-slate-400 text-sm">Earn {crypto.staking_apy}% APY</p>
+                    </CardHeader>
+                    <CardContent>
+                      <div className="space-y-4">
+                        <div className="flex justify-between items-center">
+                          <span className="text-slate-400">Current APY</span>
+                          <span className="text-green-400 font-bold">{crypto.staking_apy}%</span>
+                        </div>
+                        <div className="flex justify-between items-center">
+                          <span className="text-slate-400">Min. Stake</span>
+                          <span className="text-white">32 {crypto.symbol}</span>
+                        </div>
+                        <div className="flex justify-between items-center">
+                          <span className="text-slate-400">Lock Period</span>
+                          <span className="text-white">Flexible</span>
+                        </div>
+                        <Button className="w-full bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700" disabled={!isDataAvailable}>
+                          Start Staking
+                        </Button>
                       </div>
-                    </div>
-                  </CardHeader>
-                  <CardContent>
-                    <div className="space-y-4">
-                      <div className="flex justify-between items-center">
-                        <span className="text-slate-400">Current APY</span>
-                        <span className="text-green-400 font-bold">{crypto.staking_apy}%</span>
-                      </div>
-                      <div className="flex justify-between items-center">
-                        <span className="text-slate-400">Min. Stake</span>
-                        <span className="text-white">32 {crypto.symbol}</span>
-                      </div>
-                      <div className="flex justify-between items-center">
-                        <span className="text-slate-400">Lock Period</span>
-                        <span className="text-white">Flexible</span>
-                      </div>
-                      <Button className="w-full bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700">
-                        Start Staking
-                      </Button>
-                    </div>
-                  </CardContent>
-                </Card>
-              ))}
-            </div>
+                    </CardContent>
+                  </Card>
+                ))}
+              </div>
+            )}
           </TabsContent>
         </Tabs>
       </div>

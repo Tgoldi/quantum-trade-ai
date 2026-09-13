@@ -1,9 +1,25 @@
 import { useState, useEffect } from 'react';
+import { z } from 'zod';
 import backendService from '../../api/backendService';
 
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { TrendingUp, TrendingDown, Activity, Calendar } from "lucide-react";
+
+const indicatorSchema = z.object({
+  id: z.string().or(z.number()).optional(),
+  indicator_name: z.string().optional(),
+  current_value: z.number().or(z.string()).optional(),
+  change: z.number().optional(),
+  change_percent: z.number().or(z.string()).optional(),
+  trend: z.enum(['improving', 'deteriorating']).optional(),
+  market_impact: z.enum(['critical', 'high', 'medium', 'low']).optional(),
+  release_date: z.string().optional(),
+}).strict().passthrough();
+
+const indicatorsResponseSchema = z.object({
+  indicators: z.array(indicatorSchema),
+});
 
 export default function MacroeconomicDashboard() {
   const [indicators, setIndicators] = useState([]);
@@ -17,7 +33,10 @@ export default function MacroeconomicDashboard() {
     try {
       // Fetch real macroeconomic data from authenticated API
       const data = await backendService.makeRequest('/macroeconomic/indicators');
-      setIndicators(data.indicators || []); // Extract indicators array
+      
+      // Validate API response against schema
+      const validatedData = indicatorsResponseSchema.parse(data);
+      setIndicators(validatedData.indicators || []);
       console.log('✅ Loaded real macroeconomic indicators');
     } catch (error) {
       console.error('Error loading indicators:', error);

@@ -5,8 +5,8 @@ services:
     container_name: quantumtrade-postgres
     environment:
       POSTGRES_DB: quantumtrade
-      POSTGRES_USER: postgres
-      POSTGRES_PASSWORD: postgres
+      POSTGRES_USER: ${POSTGRES_USER:-postgres}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
     ports:
       - "5432:5432"
     volumes:
@@ -51,8 +51,8 @@ services:
       DB_HOST: postgres
       DB_PORT: 5432
       DB_NAME: quantumtrade
-      DB_USER: postgres
-      DB_PASSWORD: postgres
+      DB_USER: ${POSTGRES_USER:-postgres}
+      DB_PASSWORD: ${POSTGRES_PASSWORD}
       REDIS_HOST: redis
       REDIS_PORT: 6379
       JWT_SECRET: ${JWT_SECRET:-change-this-in-production}

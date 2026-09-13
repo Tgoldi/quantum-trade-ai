@@ -2,8 +2,12 @@
 import { createClient } from '@supabase/supabase-js'
 
 // Supabase configuration
-const supabaseUrl = import.meta.env.VITE_SUPABASE_URL || 'https://ngwbwanpamfqoaitofih.supabase.co'
-const supabaseKey = import.meta.env.VITE_SUPABASE_ANON_KEY || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im5nd2J3YW5wYW1mcW9haXRvZmloIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjE1MDMzNDgsImV4cCI6MjA3NzA3OTM0OH0.6kifg9e7LDp2uacxSCsDKSEdFcdpMPzFen1oMgS3iuI'
+const supabaseUrl = import.meta.env.VITE_SUPABASE_URL
+const supabaseKey = import.meta.env.VITE_SUPABASE_ANON_KEY
+
+if (!supabaseUrl || !supabaseKey) {
+    throw new Error('Missing required environment variables: VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY')
+}
 
 // Create Supabase client
 export const supabase = createClient(supabaseUrl, supabaseKey)
@@ -89,8 +93,18 @@ class SupabaseService {
             .select('*')
             .eq('user_id', data.user.id)
 
+        // Redact sensitive fields from profile
+        const safeProfile = profile ? Object.create(null) : {}
+        if (profile) {
+            for (const key in profile) {
+                if (key !== 'password' && Object.prototype.hasOwnProperty.call(profile, key)) {
+                    safeProfile[key] = profile[key]
+                }
+            }
+        }
+        
         return {
-            user: { ...data.user, ...profile },
+            user: { ...data.user, ...safeProfile },
             portfolios: portfolios || [],
             tokens: {
                 accessToken: data.session?.access_token,
@@ -136,6 +150,21 @@ class SupabaseService {
     }
 
     async getPositions(portfolioId) {
+        const { data: { user } } = await this.supabase.auth.getUser()
+        if (!user) throw new Error('Not authenticated')
+
+        // Verify ownership: fetch portfolio and check user_id matches
+        const { data: portfolio, error: portfolioError } = await this.supabase
+            .from('portfolios')
+            .select('user_id')
+            .eq('id', portfolioId)
+            .single()
+
+        if (portfolioError) throw portfolioError
+        if (!portfolio || portfolio.user_id !== user.id) {
+            throw new Error('Unauthorized: Portfolio does not belong to this user')
+        }
+
         const { data, error } = await this.supabase
             .from('positions')
             .select('*')
@@ -173,6 +202,25 @@ class SupabaseService {
     async placeOrder(orderData) {
         const { data: { user } } = await this.supabase.auth.getUser()
         if (!user) throw new Error('Not authenticated')
+
+        // Verify ownership: fetch portfolio and check user_id matches
+        const { data: portfolio, error: portfolioError } = await this.supabase
+            .from('portfolios')
+            .select('user_id')
+            .eq('id', orderData.portfolioId)
+            .single()
+
+        if (portfolioError) throw portfolioError
+        if (!portfolio || portfolio.user_id !== user.id) {
+            throw new Error('Unauthorized: Portfolio does not belong to this user')
+        }
+
+        // Validate orderData keys to prevent prototype pollution
+        for (const key of Object.keys(orderData)) {
+            if (['__proto__', 'constructor', 'prototype'].includes(key)) {
+                throw new Error('Invalid key')
+            }
+        }
 
         const { data, error } = await this.supabase
             .from('trades')
@@ -214,7 +262,22 @@ class SupabaseService {
     }
 
     // Real-time subscriptions
-    subscribeToPortfolio(portfolioId, callback) {
+    async subscribeToPortfolio(portfolioId, callback) {
+        const { data: { user } } = await this.supabase.auth.getUser()
+        if (!user) throw new Error('Not authenticated')
+
+        // Verify ownership before subscribing
+        const { data: portfolio, error: portfolioError } = await this.supabase
+            .from('portfolios')
+            .select('user_id')
+            .eq('id', portfolioId)
+            .single()
+
+        if (portfolioError) throw portfolioError
+        if (!portfolio || portfolio.user_id !== user.id) {
+            throw new Error('Unauthorized: Portfolio does not belong to this user')
+        }
+
         return this.supabase
             .channel('portfolio-changes')
             .on('postgres_changes', {
@@ -226,7 +289,22 @@ class SupabaseService {
             .subscribe()
     }
 
-    subscribeToTrades(portfolioId, callback) {
+    async subscribeToTrades(portfolioId, callback) {
+        const { data: { user } } = await this.supabase.auth.getUser()
+        if (!user) throw new Error('Not authenticated')
+
+        // Verify ownership before subscribing
+        const { data: portfolio, error: portfolioError } = await this.supabase
+            .from('portfolios')
+            .select('user_id')
+            .eq('id', portfolioId)
+            .single()
+
+        if (portfolioError) throw portfolioError
+        if (!portfolio || portfolio.user_id !== user.id) {
+            throw new Error('Unauthorized: Portfolio does not belong to this user')
+        }
+
         return this.supabase
             .channel('trade-changes')
             .on('postgres_changes', {

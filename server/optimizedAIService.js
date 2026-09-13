@@ -26,6 +26,41 @@ class OptimizedAITradingService {
 
         // Pre-warm models flag
         this.modelsWarmed = false;
+        
+        // RAG context sanitization settings
+        this.maxContextLength = 500; // Max length for injected context
+        this.instructionPatterns = [
+            /ignore\s+previous/gi,
+            /system\s+prompt/gi,
+            /override/gi,
+            /execute\s+command/gi,
+            /run\s+code/gi,
+            /eval/gi,
+            /inject/gi
+        ];
+    }
+
+    // Sanitize RAG context before injection into prompts
+    sanitizeContext(context) {
+        if (!context) return '';
+        
+        // Convert to string and trim
+        let sanitized = String(context).trim();
+        
+        // Remove instruction-like patterns
+        for (const pattern of this.instructionPatterns) {
+            sanitized = sanitized.replace(pattern, '');
+        }
+        
+        // Remove newlines and excessive whitespace
+        sanitized = sanitized.replace(/\n+/g, ' ').replace(/\s+/g, ' ');
+        
+        // Enforce length limit
+        if (sanitized.length > this.maxContextLength) {
+            sanitized = sanitized.substring(0, this.maxContextLength) + '...';
+        }
+        
+        return sanitized;
     }
 
     // Pre-warm models for faster first response
@@ -114,7 +149,8 @@ class OptimizedAITradingService {
 
     // Ultra-fast technical analysis
     async getTechnicalAnalysis(symbol, price, change) {
-        const prompt = `${symbol} $${price} ${change > 0 ? '+' : ''}${change}%. Technical: bullish/bearish/neutral?`;
+        const sanitizedSymbol = this.sanitizeContext(symbol);
+        const prompt = `${sanitizedSymbol} $${price} ${change > 0 ? '+' : ''}${change}%. Technical: bullish/bearish/neutral?`;
 
         const response = await this.queryLLM(this.models.technical, prompt, 0.1, 6000);
         if (!response) return null;
@@ -133,7 +169,8 @@ class OptimizedAITradingService {
     // Fast risk assessment
     async getRiskAssessment(symbol, price, change, volatility) {
         const riskLevel = Math.abs(change) > 5 ? 'high' : Math.abs(change) > 2 ? 'medium' : 'low';
-        const prompt = `${symbol} risk: ${riskLevel} volatility. Risk level: low/medium/high?`;
+        const sanitizedSymbol = this.sanitizeContext(symbol);
+        const prompt = `${sanitizedSymbol} risk: ${riskLevel} volatility. Risk level: low/medium/high?`;
 
         const response = await this.queryLLM(this.models.risk, prompt, 0.1, 6000);
         if (!response) return null;
@@ -152,7 +189,8 @@ class OptimizedAITradingService {
     // Quick sentiment analysis
     async getSentimentAnalysis(symbol, price, change) {
         const momentum = change > 0 ? 'positive' : 'negative';
-        const prompt = `${symbol} ${momentum} momentum ${change}%. Sentiment: bullish/bearish/neutral?`;
+        const sanitizedSymbol = this.sanitizeContext(symbol);
+        const prompt = `${sanitizedSymbol} ${momentum} momentum ${change}%. Sentiment: bullish/bearish/neutral?`;
 
         const response = await this.queryLLM(this.models.sentiment, prompt, 0.2, 6000);
         if (!response) return null;
@@ -170,7 +208,10 @@ class OptimizedAITradingService {
 
     // Strategic analysis
     async getStrategyAnalysis(symbol, price, change, technical, risk) {
-        const context = `${symbol} $${price} ${change}% trend:${technical?.trend || 'unknown'} risk:${risk?.risk_level || 'unknown'}`;
+        const sanitizedSymbol = this.sanitizeContext(symbol);
+        const sanitizedTrend = this.sanitizeContext(technical?.trend || 'unknown');
+        const sanitizedRisk = this.sanitizeContext(risk?.risk_level || 'unknown');
+        const context = `${sanitizedSymbol} $${price} ${change}% trend:${sanitizedTrend} risk:${sanitizedRisk}`;
         const prompt = `${context}. Strategy: buy/sell/hold?`;
 
         const response = await this.queryLLM(this.models.strategy, prompt, 0.2, 8000);

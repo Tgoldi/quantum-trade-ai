@@ -1,4 +1,6 @@
 import { useState, useEffect } from "react";
+import { useNavigate } from "react-router-dom";
+import { useAuth } from "../hooks/useAuth";
 
 import PortfolioVitals from "../components/dashboard/PortfolioVitals";
 import AIDecisionPanel from "../components/dashboard/AIDecisionPanel";
@@ -7,6 +9,8 @@ import MarketPulse from "../components/dashboard/MarketPulse";
 import backendService from "../api/backendService";
 
 export default function Dashboard() {
+  const navigate = useNavigate();
+  const { user } = useAuth();
   const [portfolio, setPortfolio] = useState({
     total_value: 0,
     day_change: 0,
@@ -24,15 +28,37 @@ export default function Dashboard() {
     stop_loss: 0
   });
   const [loading, setLoading] = useState(true);
+  const [lastAIRequestTime, setLastAIRequestTime] = useState(0);
 
   useEffect(() => {
+    if (!user) {
+      navigate('/login');
+      return;
+    }
     loadDashboardData();
     const interval = setInterval(loadDashboardData, 30000); // Refresh every 30s
     return () => clearInterval(interval);
-  }, []);
+  }, [user, navigate]);
 
   const handleExecuteDecision = async (decision) => {
     try {
+      // Validate AI decision parameters
+      if (!decision.symbol || typeof decision.symbol !== 'string' || !/^[A-Z]{1,5}$/.test(decision.symbol)) {
+        throw new Error('Invalid symbol');
+      }
+      if (!['buy', 'sell', 'hold'].includes(decision.decision)) {
+        throw new Error('Invalid decision type');
+      }
+      if (typeof decision.target_price !== 'number' || decision.target_price <= 0 || decision.target_price > 1000000) {
+        throw new Error('Invalid target price');
+      }
+      if (typeof decision.stop_loss !== 'number' || decision.stop_loss <= 0 || decision.stop_loss > 1000000) {
+        throw new Error('Invalid stop loss');
+      }
+      if (typeof decision.confidence_score !== 'number' || decision.confidence_score < 0 || decision.confidence_score > 100) {
+        throw new Error('Invalid confidence score');
+      }
+
       // Create order from AI decision
       const orderData = {
         symbol: decision.symbol,
@@ -46,24 +72,11 @@ export default function Dashboard() {
         confidence: decision.confidence_score
       };
 
-      // Store in localStorage for OrderManagement to pick up
-      const existingOrders = JSON.parse(localStorage.getItem('ai_orders') || '[]');
-      const newOrder = {
-        ...orderData,
-        id: Date.now(),
-        order_id: `AI_${Date.now()}`,
-        status: 'pending',
-        filled_quantity: 0,
-        remaining_quantity: orderData.quantity,
-        created_date: new Date().toISOString(),
-        reasoning: decision.reasoning
-      };
+      // Send to server for validation and creation
+      const response = await backendService.createOrder(orderData);
       
-      existingOrders.unshift(newOrder);
-      localStorage.setItem('ai_orders', JSON.stringify(existingOrders));
-      
-      console.log('✅ AI decision executed and order created:', newOrder);
-      alert(`Order placed: ${newOrder.side.toUpperCase()} ${newOrder.quantity} ${newOrder.symbol} @ $${newOrder.price}`);
+      console.log('✅ AI decision executed and order created on server:', response);
+      alert(`Order placed: ${orderData.side.toUpperCase()} ${orderData.quantity} ${orderData.symbol} @ $${orderData.price}`);
     } catch (error) {
       console.error('Error executing AI decision:', error);
       alert('Failed to execute decision: ' + error.message);
@@ -144,6 +157,14 @@ export default function Dashboard() {
   };
 
   const loadAIDecision = async () => {
+    // Implement rate limiting: prevent calls within 30 seconds
+    const now = Date.now();
+    if (now - lastAIRequestTime < 30000) {
+      alert('Please wait 30 seconds before requesting another AI analysis');
+      return;
+    }
+    setLastAIRequestTime(now);
+
     // Get real AI decision from backend (uses your Ollama models)
     // Use AAPL consistently to leverage cache
     const symbol = 'AAPL'; // Consistent symbol to use cache
@@ -171,6 +192,20 @@ export default function Dashboard() {
       
       // Race between API call and timeout
       const aiDecision = await Promise.race([aiDecisionPromise, timeoutPromise]);
+      
+      // Validate AI decision before displaying
+      if (!aiDecision.symbol || !['buy', 'sell', 'hold'].includes(aiDecision.decision)) {
+        throw new Error('Invalid AI decision received from server');
+      }
+      if (typeof aiDecision.confidence_score !== 'number' || aiDecision.confidence_score < 0 || aiDecision.confidence_score > 100) {
+        throw new Error('Invalid confidence score from server');
+      }
+      if (typeof aiDecision.target_price !== 'number' || aiDecision.target_price <= 0) {
+        throw new Error('Invalid target price from server');
+      }
+      if (typeof aiDecision.stop_loss !== 'number' || aiDecision.stop_loss <= 0) {
+        throw new Error('Invalid stop loss from server');
+      }
       
       setRecentDecision(aiDecision);
       console.log('✅ Loaded real AI decision from Ollama:', aiDecision);

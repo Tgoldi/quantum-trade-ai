@@ -33,6 +33,7 @@ class BackendService {
         this.maxReconnectAttempts = 5;
         this.reconnectDelay = 1000;
         this.isConnecting = false;
+        this.accessToken = null; // Store access token in memory only
 
         // Initialize WebSocket connection
         this.initWebSocket();
@@ -139,19 +140,19 @@ class BackendService {
         console.log(`📉 Unsubscribed from ${symbol}`);
     }
 
-    // Get auth token from storage
+    // Get auth token from memory (not from storage)
     getAuthToken() {
-        return localStorage.getItem('auth_token');
+        return this.accessToken || null;
     }
 
-    // Set auth token
+    // Set auth token in memory only
     setAuthToken(token) {
-        localStorage.setItem('auth_token', token);
+        this.accessToken = token;
     }
 
-    // Clear auth token
+    // Clear auth token from memory
     clearAuthToken() {
-        localStorage.removeItem('auth_token');
+        this.accessToken = null;
     }
 
     // HTTP request helper

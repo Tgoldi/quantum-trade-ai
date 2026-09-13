@@ -6,7 +6,10 @@ const { v4: uuidv4 } = require('uuid');
 
 class AuthService {
     constructor() {
-        this.jwtSecret = process.env.JWT_SECRET || 'quantum-trade-secret-change-in-production';
+        if (!process.env.JWT_SECRET) {
+            throw new Error('JWT_SECRET environment variable is required and must be set');
+        }
+        this.jwtSecret = process.env.JWT_SECRET;
         this.jwtExpiration = '7d';
         this.refreshTokenExpiration = '30d';
     }
@@ -37,7 +40,7 @@ class AuthService {
         }
 
         // Hash password
-        const passwordHash = await bcrypt.hash(password, 10);
+        const passwordHash = await bcrypt.hash(password, 12);
 
         // Create user
         return await transaction(async (client) => {
@@ -293,7 +296,7 @@ class AuthService {
         }
 
         // Hash new password
-        const newPasswordHash = await bcrypt.hash(newPassword, 10);
+        const newPasswordHash = await bcrypt.hash(newPassword, 12);
 
         // Update password
         await query(
@@ -387,7 +390,7 @@ class AuthService {
 
         if (!user) {
             // Don't reveal if user exists
-            return { success: true };
+            return { success: true, message: 'If that email exists, we sent a reset link' };
         }
 
         // Generate reset token
@@ -399,10 +402,10 @@ class AuthService {
         }, 60 * 60); // 1 hour
 
         // In production, send email with reset link
-        console.log(`Password reset token for ${email}: ${resetToken}`);
-        console.log(`Reset link: http://localhost:3000/reset-password?token=${resetToken}`);
+        // TODO: Send reset link via email to user
+        // console.log(`Reset link: http://localhost:3000/reset-password?token=${resetToken}`);
 
-        return { success: true, token: resetToken }; // Remove token from response in production
+        return { success: true, message: 'If that email exists, we sent a reset link' };
     }
 
     /**
@@ -419,7 +422,7 @@ class AuthService {
         }
 
         // Hash new password
-        const passwordHash = await bcrypt.hash(newPassword, 10);
+        const passwordHash = await bcrypt.hash(newPassword, 12);
 
         // Update password
         await query(

@@ -9,33 +9,44 @@ const TradingViewMiniChart = ({ symbol, width = '100%', height = 300 }) => {
         if (!container.current) return;
 
         // Clear previous widget
-        container.current.innerHTML = '';
+        while (container.current.firstChild) {
+            container.current.removeChild(container.current.firstChild);
+        }
 
-        // Create new widget
-        const script = document.createElement('script');
-        script.type = 'text/javascript';
-        script.src = 'https://s3.tradingview.com/external-embedding/embed-widget-mini-symbol-overview.js';
-        script.async = true;
-        script.innerHTML = JSON.stringify({
-            symbol: symbol || 'NASDAQ:AAPL',
-            width: width,
-            height: height,
-            locale: 'en',
-            dateRange: '12M',
-            colorTheme: 'dark',
-            trendLineColor: 'rgba(41, 98, 255, 1)',
-            underLineColor: 'rgba(41, 98, 255, 0.3)',
-            underLineBottomColor: 'rgba(41, 98, 255, 0)',
-            isTransparent: false,
-            autosize: false,
-            largeChartUrl: ''
-        });
+        // Create widget container div
+        const widgetDiv = document.createElement('div');
+        widgetDiv.className = 'tradingview-widget-container__widget';
+        
+        // Store configuration in data attributes for TradingView's external script to read
+        widgetDiv.setAttribute('data-symbol', symbol || 'NASDAQ:AAPL');
+        widgetDiv.setAttribute('data-width', width);
+        widgetDiv.setAttribute('data-height', height);
+        widgetDiv.setAttribute('data-locale', 'en');
+        widgetDiv.setAttribute('data-dateRange', '12M');
+        widgetDiv.setAttribute('data-colorTheme', 'dark');
+        widgetDiv.setAttribute('data-trendLineColor', 'rgba(41, 98, 255, 1)');
+        widgetDiv.setAttribute('data-underLineColor', 'rgba(41, 98, 255, 0.3)');
+        widgetDiv.setAttribute('data-underLineBottomColor', 'rgba(41, 98, 255, 0)');
+        widgetDiv.setAttribute('data-isTransparent', 'false');
+        widgetDiv.setAttribute('data-autosize', 'false');
+        widgetDiv.setAttribute('data-largeChartUrl', '');
 
-        container.current.appendChild(script);
+        container.current.appendChild(widgetDiv);
+
+        // Load the external script separately
+        const externalScript = document.createElement('script');
+        externalScript.src = 'https://s3.tradingview.com/external-embedding/embed-widget-mini-symbol-overview.js';
+        externalScript.async = true;
+        document.body.appendChild(externalScript);
 
         return () => {
             if (container.current) {
-                container.current.innerHTML = '';
+                while (container.current.firstChild) {
+                    container.current.removeChild(container.current.firstChild);
+                }
+            }
+            if (document.body.contains(externalScript)) {
+                document.body.removeChild(externalScript);
             }
         };
     }, [symbol, width, height]);

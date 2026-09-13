@@ -128,6 +128,34 @@ export default function Backtesting() {
   };
 
   const runBacktest = async () => {
+    // Validate initial capital
+    if (!Number.isFinite(simulationConfig.initial_capital) || simulationConfig.initial_capital <= 0 || simulationConfig.initial_capital > 10000000) {
+      alert('Initial capital must be a number between $1 and $10,000,000');
+      return;
+    }
+
+    // Validate date range
+    const startDate = new Date(simulationConfig.start_date);
+    const endDate = new Date(simulationConfig.end_date);
+    const today = new Date();
+    const fiftyYearsAgo = new Date();
+    fiftyYearsAgo.setFullYear(fiftyYearsAgo.getFullYear() - 50);
+
+    if (startDate >= endDate) {
+      alert('Start date must be before end date');
+      return;
+    }
+
+    if (endDate > today) {
+      alert('End date must be in the past');
+      return;
+    }
+
+    if (startDate < fiftyYearsAgo) {
+      alert('Start date cannot be more than 50 years in the past');
+      return;
+    }
+
     setIsRunning(true);
     try {
       // Simulate running a backtest with mock results  

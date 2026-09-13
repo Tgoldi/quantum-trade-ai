@@ -3,6 +3,8 @@
 
 const express = require('express');
 const cors = require('cors');
+const helmet = require('helmet');
+const rateLimit = require('express-rate-limit');
 const WebSocket = require('ws');
 const Alpaca = require('@alpacahq/alpaca-trade-api');
 const FastAITradingService = require('./fastAIService');
@@ -12,8 +14,16 @@ const app = express();
 const PORT = process.env.PORT || 3001;
 
 // Middleware
-app.use(cors());
-app.use(express.json());
+app.use(helmet());
+app.use(cors({ origin: process.env.FRONTEND_URL || 'https://yourdomain.com' }));
+app.use(express.json({ limit: '1mb' }));
+
+// Rate limiting
+const apiLimiter = rateLimit({
+    windowMs: 15 * 60 * 1000, // 15 minutes
+    max: 100 // limit each IP to 100 requests per windowMs
+});
+app.use('/api/', apiLimiter);
 
 // Initialize Fast AI Trading Service
 const fastAI = new FastAITradingService();
@@ -208,7 +218,7 @@ app.get('/api/quotes/:symbols', async (req, res) => {
 });
 
 // Fast AI Analysis (Single Stock)
-app.post('/api/ai/fast', async (req, res) => {
+app.post('/api/ai/fast', apiLimiter, async (req, res) => {
     try {
         const { symbol } = req.body;
 
@@ -249,7 +259,7 @@ app.post('/api/ai/fast', async (req, res) => {
 });
 
 // Fast Batch AI Analysis
-app.post('/api/ai/fast-batch', async (req, res) => {
+app.post('/api/ai/fast-batch', apiLimiter, async (req, res) => {
     try {
         const { symbols } = req.body;
         

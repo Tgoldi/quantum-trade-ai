@@ -259,28 +259,6 @@ const LoginPage = () => {
                     </div>
                 </Card>
 
-                {/* Demo Account */}
-                <Card className="bg-slate-900/30 border-slate-800/30 p-4 mt-4">
-                    <div className="text-center">
-                        <p className="text-slate-400 text-sm mb-2">Want to try it out?</p>
-                        <Button
-                            variant="outline"
-                            onClick={() => {
-                                setFormData({
-                                    email: 'demo@quantumtrade.ai',
-                                    password: 'demo123',
-                                    firstName: '',
-                                    lastName: '',
-                                    username: ''
-                                });
-                                setIsLogin(true);
-                            }}
-                            className="bg-slate-800 border-slate-700 text-slate-300 hover:bg-slate-700"
-                        >
-                            Use Demo Account
-                        </Button>
-                    </div>
-                </Card>
             </div>
         </div>
     );
