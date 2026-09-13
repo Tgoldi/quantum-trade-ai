@@ -55,21 +55,38 @@ echo "⚙️  Creating environment files..."
 
 # Frontend environment
 cat > .env.local << 'EOF'
-VITE_SUPABASE_URL=https://ngwbwanpamfqoaitofih.supabase.co
-VITE_SUPABASE_ANON_KEY=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im5nd2J3YW5wYW1mcW9haXRvZmloIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjE1MDMzNDgsImV4cCI6MjA3NzA3OTM0OH0.6kifg9e7LDp2uacxSCsDKSEdFcdpMPzFen1oMgS3iuI
+VITE_SUPABASE_URL=${VITE_SUPABASE_URL}
+VITE_SUPABASE_ANON_KEY=${VITE_SUPABASE_ANON_KEY}
 VITE_API_URL=http://localhost:3001
 EOF
 
 # Backend environment
 if [ ! -f "server/.env" ]; then
-    JWT_SECRET=$(openssl rand -base64 32 2>/dev/null || echo "change-this-secret-key")
+    # Validate required environment variables
+    if [ -z "$JWT_SECRET" ]; then
+        echo "Error: JWT_SECRET environment variable is not set"
+        exit 1
+    fi
+    if [ -z "$DB_PASSWORD" ]; then
+        echo "Error: DB_PASSWORD environment variable is not set"
+        exit 1
+    fi
+    if [ -z "$SUPABASE_URL" ]; then
+        echo "Error: SUPABASE_URL environment variable is not set"
+        exit 1
+    fi
+    if [ -z "$SUPABASE_ANON_KEY" ]; then
+        echo "Error: SUPABASE_ANON_KEY environment variable is not set"
+        exit 1
+    fi
+    
     cat > server/.env << EOF
 # Database Configuration (using Supabase, but keeping for compatibility)
 DB_HOST=postgres
 DB_PORT=5432
 DB_NAME=quantumtrade
 DB_USER=postgres
-DB_PASSWORD=postgres_secure_$(openssl rand -hex 8)
+DB_PASSWORD=$DB_PASSWORD
 
 # Redis Configuration
 REDIS_HOST=redis
@@ -83,8 +100,8 @@ NODE_ENV=production
 PORT=3001
 
 # Supabase (if using Supabase backend)
-SUPABASE_URL=https://ngwbwanpamfqoaitofih.supabase.co
-SUPABASE_ANON_KEY=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im5nd2J3YW5wYW1mcW9haXRvZmloIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjE1MDMzNDgsImV4cCI6MjA3NzA3OTM0OH0.6kifg9e7LDp2uacxSCsDKSEdFcdpMPzFen1oMgS3iuI
+SUPABASE_URL=$SUPABASE_URL
+SUPABASE_ANON_KEY=$SUPABASE_ANON_KEY
 EOF
 fi
 

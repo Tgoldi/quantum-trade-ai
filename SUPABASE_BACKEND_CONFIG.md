@@ -11,19 +11,17 @@
 ### 2. Environment Variables Set
 **File:** `server/.env`
 
-```env
-# Supabase Database Configuration
-DB_HOST=aws-1-ap-southeast-1.pooler.supabase.com
-DB_PORT=6543
-DB_NAME=postgres
-DB_USER=postgres.ngwbwanpamfqoaitofih
-DB_PASSWORD=PLEASE_RESET_PASSWORD_IN_SUPABASE_DASHBOARD
-DB_SSL=true
+Store the following environment variables in `server/.env` (do not commit to version control):
+- `DB_HOST` - Supabase pooler hostname
+- `DB_PORT` - Connection pooler port (6543)
+- `DB_NAME` - Database name
+- `DB_USER` - Database user
+- `DB_PASSWORD` - Database password (retrieve from Supabase dashboard)
+- `DB_SSL` - Set to true for SSL connections
+- `SUPABASE_URL` - Your Supabase project URL
+- `SUPABASE_ANON_KEY` - Your Supabase anonymous key
 
-# Supabase Configuration
-SUPABASE_URL=https://ngwbwanpamfqoaitofih.supabase.co
-SUPABASE_ANON_KEY=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
-```
+**⚠️ IMPORTANT:** Never commit actual credentials to version control. Use a `.env` file and add it to `.gitignore`.
 
 ## ⚠️ CRITICAL: Set Your Database Password
 
@@ -49,17 +47,16 @@ If you remember your database password:
 ## 🔍 Connection Details
 
 ### Supabase Project Info
-- **Project URL:** https://ngwbwanpamfqoaitofih.supabase.co
-- **Project ID:** ngwbwanpamfqoaitofih
-- **Project Name:** Tradedashboard
+- **Project URL:** Set via `SUPABASE_URL` environment variable
+- **Project ID:** Set via environment variables
 - **Region:** Southeast Asia (Singapore)
 
 ### Database Connection
-- **Host (Pooler):** aws-1-ap-southeast-1.pooler.supabase.com
+- **Host (Pooler):** Set via `DB_HOST` environment variable
 - **Port (Pooler):** 6543 *(uses connection pooling)*
-- **Database:** postgres
-- **User:** postgres.ngwbwanpamfqoaitofih
-- **SSL:** Required (enabled)
+- **Database:** Set via `DB_NAME` environment variable
+- **User:** Set via `DB_USER` environment variable
+- **SSL:** Required (enabled via `DB_SSL=true`)
 
 ### Why Connection Pooler?
 Using port **6543** (pooler) instead of **5432** (direct):
@@ -116,7 +113,7 @@ Your Supabase database should have these tables:
 - ✅ performance_metrics
 - ✅ system_logs
 
-**To verify:** Go to https://supabase.com/dashboard/project/ngwbwanpamfqoaitofih/editor
+**To verify:** Go to your Supabase dashboard SQL Editor
 
 If tables don't exist, run the schema:
 1. Go to SQL Editor in Supabase Dashboard

@@ -8,6 +8,7 @@ import { WebSocketServer, WebSocket } from 'ws';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import { dirname } from 'path';
+import helmet from 'helmet';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
@@ -17,8 +18,11 @@ const PORT = 8080;
 const BACKEND_PORT = 3002;
 const BACKEND_URL = `http://localhost:${BACKEND_PORT}`;
 
+// Security middleware
+app.use(helmet());
+
 // Middleware to parse JSON
-app.use(express.json());
+app.use(express.json({ limit: '1mb' }));
 app.use(express.urlencoded({ extended: true }));
 
 // Proxy API requests to backend

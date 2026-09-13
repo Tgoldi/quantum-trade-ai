@@ -18,6 +18,7 @@
     updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
     last_login TIMESTAMP WITH TIME ZONE
     );
+    ALTER TABLE public.users ENABLE ROW LEVEL SECURITY;
 
     -- Portfolios table
     CREATE TABLE public.portfolios (
@@ -30,6 +31,7 @@
     created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
     updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
     );
+    ALTER TABLE public.portfolios ENABLE ROW LEVEL SECURITY;
 
     -- Positions table
     CREATE TABLE public.positions (
@@ -46,6 +48,7 @@
     updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
     UNIQUE(portfolio_id, symbol)
     );
+    ALTER TABLE public.positions ENABLE ROW LEVEL SECURITY;
 
     -- Trades table
     CREATE TABLE public.trades (
@@ -66,6 +69,7 @@
     created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
     updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
     );
+    ALTER TABLE public.trades ENABLE ROW LEVEL SECURITY;
 
     -- AI Decisions table
     CREATE TABLE public.ai_decisions (
@@ -79,6 +83,7 @@
     input_data JSONB,
     created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
     );
+    ALTER TABLE public.ai_decisions ENABLE ROW LEVEL SECURITY;
 
     -- Market Data table (TimescaleDB for time-series)
     CREATE TABLE public.market_data (
@@ -91,6 +96,7 @@
     volume BIGINT,
     PRIMARY KEY (symbol, timestamp)
     );
+    ALTER TABLE public.market_data ENABLE ROW LEVEL SECURITY;
 
     -- Convert to hypertable for TimescaleDB (if extension is available)
     -- SELECT create_hypertable('market_data', 'timestamp');
@@ -107,6 +113,7 @@
     alpha DECIMAL(5,2),
     calculated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
     );
+    ALTER TABLE public.risk_metrics ENABLE ROW LEVEL SECURITY;
 
     -- Backtest Results table
     CREATE TABLE public.backtest_results (
@@ -127,6 +134,7 @@
     results JSONB,
     created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
     );
+    ALTER TABLE public.backtest_results ENABLE ROW LEVEL SECURITY;
 
     -- Alerts table
     CREATE TABLE public.alerts (
@@ -140,6 +148,7 @@
     triggered_at TIMESTAMP WITH TIME ZONE,
     created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
     );
+    ALTER TABLE public.alerts ENABLE ROW LEVEL SECURITY;
 
     -- Performance Metrics table
     CREATE TABLE public.performance_metrics (
@@ -150,6 +159,7 @@
     metric_date DATE NOT NULL,
     created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
     );
+    ALTER TABLE public.performance_metrics ENABLE ROW LEVEL SECURITY;
 
     -- Sentiment Data table
     CREATE TABLE public.sentiment_data (
@@ -161,6 +171,7 @@
     raw_data JSONB,
     processed_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
     );
+    ALTER TABLE public.sentiment_data ENABLE ROW LEVEL SECURITY;
 
     -- System Logs table
     CREATE TABLE public.system_logs (
@@ -170,19 +181,9 @@
     metadata JSONB,
     created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
     );
+    ALTER TABLE public.system_logs ENABLE ROW LEVEL SECURITY;
 
     -- Row Level Security (RLS) Policies
-
-    -- Enable RLS on all tables
-    ALTER TABLE public.users ENABLE ROW LEVEL SECURITY;
-    ALTER TABLE public.portfolios ENABLE ROW LEVEL SECURITY;
-    ALTER TABLE public.positions ENABLE ROW LEVEL SECURITY;
-    ALTER TABLE public.trades ENABLE ROW LEVEL SECURITY;
-    ALTER TABLE public.ai_decisions ENABLE ROW LEVEL SECURITY;
-    ALTER TABLE public.risk_metrics ENABLE ROW LEVEL SECURITY;
-    ALTER TABLE public.backtest_results ENABLE ROW LEVEL SECURITY;
-    ALTER TABLE public.alerts ENABLE ROW LEVEL SECURITY;
-    ALTER TABLE public.performance_metrics ENABLE ROW LEVEL SECURITY;
 
     -- Users policies
     CREATE POLICY "Users can view own profile" ON public.users
@@ -306,7 +307,7 @@
     VALUES (NEW.id, 'Paper Trading', 'paper', 100000.00, 100000.00);
     RETURN NEW;
     END;
-    $$ LANGUAGE plpgsql SECURITY DEFINER;
+    $$ LANGUAGE plpgsql SECURITY DEFINER SET search_path = 'public';
 
     -- Trigger to create default portfolio
     CREATE TRIGGER on_auth_user_created
