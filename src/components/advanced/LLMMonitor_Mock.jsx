@@ -60,9 +60,11 @@ export default function LLMMonitor() {
     };
 
     // Fetch real-time system health
+    const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:3001';
+
     const fetchLiveSystemHealth = async () => {
         try {
-            const response = await fetch('http://localhost:3001/api/llm/health');
+            const response = await fetch(`${API_BASE_URL}/api/llm/health`);
             if (response.ok) {
                 const healthData = await response.json();
                 setSystemHealth(healthData);
@@ -83,7 +85,7 @@ export default function LLMMonitor() {
             console.log('📡 Fetching real LLM data from server...');
             
             // Fetch real data from your server
-            const response = await fetch('http://localhost:3001/api/llm/models');
+            const response = await fetch(`${API_BASE_URL}/api/llm/models`);
             if (!response.ok) {
                 throw new Error(`HTTP error! status: ${response.status}`);
             }
@@ -101,7 +103,7 @@ export default function LLMMonitor() {
 
     const loadPerformanceMetrics = async () => {
         try {
-            const response = await fetch('http://localhost:3001/api/llm/metrics');
+            const response = await fetch(`${API_BASE_URL}/api/llm/metrics`);
             if (response.ok) {
                 const metricsData = await response.json();
                 setPerformanceMetrics(metricsData.historical || []);
@@ -119,7 +121,7 @@ export default function LLMMonitor() {
     const updateRealTimeMetrics = async () => {
         try {
             // Fetch real-time metrics from server
-            const response = await fetch('http://localhost:3001/api/llm/metrics');
+            const response = await fetch(`${API_BASE_URL}/api/llm/metrics`);
             if (response.ok) {
                 const metricsData = await response.json();
                 setRealTimeData(metricsData);
@@ -208,13 +210,23 @@ export default function LLMMonitor() {
     // Test investment decision
     const testInvestmentDecision = async () => {
         if (!testSymbol) return;
-        
+
+        if (!/^[A-Z]{1,5}$/.test(testSymbol)) {
+            console.error('Invalid symbol');
+            setTestResults({
+                symbol: testSymbol,
+                error: 'Invalid stock symbol. Must be 1-5 uppercase letters.',
+                timestamp: new Date().toISOString()
+            });
+            return;
+        }
+
         setTestLoading(true);
         try {
             console.log(`🧪 Testing investment decision for ${testSymbol}...`);
             
             // Call your AI analysis endpoint
-            const response = await fetch('http://localhost:3001/api/ai/analyze', {
+            const response = await fetch(`${API_BASE_URL}/api/ai/analyze`, {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',

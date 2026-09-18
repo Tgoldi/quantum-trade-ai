@@ -53,7 +53,7 @@ VITE_SUPABASE_ANON_KEY=$VITE_SUPABASE_ANON_KEY
 EOF
 
 if [ ! -f "server/.env" ]; then
-    JWT_SECRET=$(openssl rand -base64 32 2>/dev/null || echo "change-this-secret-key")
+    JWT_SECRET=$(openssl rand -base64 32) || { echo "Error: openssl not available, cannot generate secure JWT secret"; exit 1; }
     cat > server/.env << EOF
 DB_HOST=postgres
 DB_PORT=5432

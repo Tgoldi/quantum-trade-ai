@@ -114,6 +114,9 @@ class BaseBroker {
      * @param {Object} order - Order to validate
      */
     validateOrder(order) {
+        const MAX_QUANTITY = 100000;
+        const MAX_NOTIONAL_VALUE = 1000000;
+
         if (!order.symbol) {
             throw new Error('Symbol is required');
         }
@@ -123,8 +126,15 @@ class BaseBroker {
         if (!order.quantity || order.quantity <= 0) {
             throw new Error('Quantity must be positive');
         }
+        if (order.quantity > MAX_QUANTITY) {
+            throw new Error(`Quantity exceeds maximum allowed order size of ${MAX_QUANTITY} shares`);
+        }
         if (!order.orderType) {
             throw new Error('Order type is required');
+        }
+        const priceForNotional = order.limitPrice || order.stopPrice || order.price;
+        if (priceForNotional && order.quantity * priceForNotional > MAX_NOTIONAL_VALUE) {
+            throw new Error(`Order notional value exceeds maximum allowed value of $${MAX_NOTIONAL_VALUE}`);
         }
         return true;
     }

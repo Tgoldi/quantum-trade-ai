@@ -13,7 +13,7 @@ class BacktestingService {
     /**
      * Run backtest with historical data
      */
-    async runBacktest(config) {
+    async runBacktest(config, authUserId) {
         const {
             strategyConfig,
             symbols,
@@ -22,6 +22,10 @@ class BacktestingService {
             initialCapital = 100000,
             userId
         } = config;
+
+        if (!authUserId || userId !== authUserId) {
+            throw new Error('Unauthorized: userId does not match authenticated user');
+        }
 
         console.log(`📊 Running backtest: ${strategyConfig.name} from ${startDate} to ${endDate}`);
 
@@ -523,8 +527,12 @@ class BacktestingService {
     /**
      * Save backtest results to database
      */
-    async saveBacktestResults(data) {
+    async saveBacktestResults(data, authUserId) {
         const { userId, name, config, startDate, endDate, initialCapital, results, metrics } = data;
+
+        if (!authUserId || userId !== authUserId) {
+            throw new Error('Unauthorized: userId does not match authenticated user');
+        }
 
         const backtestId = uuidv4();
 
@@ -559,11 +567,11 @@ class BacktestingService {
     /**
      * Monte Carlo simulation
      */
-    async runMonteCarloSimulation(backtestId, numSimulations = 1000) {
+    async runMonteCarloSimulation(backtestId, numSimulations = 1000, userId) {
         // Get backtest results
         const [backtest] = await query(
-            'SELECT * FROM backtest_results WHERE id = $1',
-            [backtestId]
+            'SELECT * FROM backtest_results WHERE id = $1 AND user_id = $2',
+            [backtestId, userId]
         );
 
         if (!backtest) {

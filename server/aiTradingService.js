@@ -24,6 +24,18 @@ class AITradingService {
     }
 
     async queryLLM(model, prompt, temperature = 0.7) {
+        if (typeof prompt !== 'string' || prompt.length === 0 || prompt.length > 8000) {
+            console.error('❌ Rejected LLM query: invalid or oversized prompt');
+            return null;
+        }
+        this._llmCallTimestamps = this._llmCallTimestamps || [];
+        const now = Date.now();
+        this._llmCallTimestamps = this._llmCallTimestamps.filter(ts => now - ts < 60000);
+        if (this._llmCallTimestamps.length >= 20) {
+            console.error('❌ Rejected LLM query: rate limit exceeded (20 calls/min)');
+            return null;
+        }
+        this._llmCallTimestamps.push(now);
         try {
             const response = await axios.post(`${this.ollamaUrl}/api/generate`, {
                 model: model,
@@ -68,8 +80,13 @@ class AITradingService {
     }
 
     async getTechnicalAnalysis(marketData) {
-        const prompt = `Analyze ${marketData.symbol} stock:
-Price: $${marketData.price}, Change: ${marketData.change_percent}%
+        const symbol = /^[A-Za-z0-9.\-]{1,10}$/.test(marketData.symbol || '') ? marketData.symbol : 'UNKNOWN';
+        const rawPrice = Number(marketData.price);
+        const price = Number.isFinite(rawPrice) && rawPrice >= 0 && rawPrice <= 1e9 ? rawPrice : 0;
+        const rawChangePercent = Number(marketData.change_percent);
+        const changePercent = Number.isFinite(rawChangePercent) && Math.abs(rawChangePercent) <= 1000 ? rawChangePercent : 0;
+        const prompt = `Analyze ${symbol} stock:
+Price: $${price}, Change: ${changePercent}%
 
 Respond in JSON format:
 {"trend": "bullish/bearish/neutral", "confidence": 0.8, "analysis": "brief analysis"}`;
@@ -79,15 +96,25 @@ Respond in JSON format:
     }
 
     async getRiskAssessment(marketData, portfolioData) {
+        const symbol = /^[A-Za-z0-9.\-]{1,10}$/.test(marketData.symbol || '') ? marketData.symbol : 'UNKNOWN';
+        const rawPrice = Number(marketData.price);
+        const price = Number.isFinite(rawPrice) && rawPrice >= 0 && rawPrice <= 1e9 ? rawPrice : 0;
+        const rawChangePercent = Number(marketData.change_percent);
+        const changePercent = Number.isFinite(rawChangePercent) && Math.abs(rawChangePercent) <= 1000 ? rawChangePercent : 0;
+        const rawEquity = Number(portfolioData?.equity);
+        const equity = Number.isFinite(rawEquity) && rawEquity >= 0 ? rawEquity : 'N/A';
+        const rawPositionsCount = Number(portfolioData?.positions_count);
+        const positionsCount = Number.isFinite(rawPositionsCount) && rawPositionsCount >= 0 ? rawPositionsCount : 0;
+        const marketCap = typeof marketData.market_cap === 'string' || typeof marketData.market_cap === 'number' ? marketData.market_cap : 'N/A';
         const prompt = `
 As a risk management expert, assess the risk of this trading opportunity:
 
-Stock: ${marketData.symbol}
-Current Price: $${marketData.price}
-Volatility: ${marketData.change_percent}%
-Market Cap: ${marketData.market_cap || 'N/A'}
-Portfolio Value: $${portfolioData?.equity || 'N/A'}
-Current Positions: ${portfolioData?.positions_count || 0}
+Stock: ${symbol}
+Current Price: $${price}
+Volatility: ${changePercent}%
+Market Cap: ${marketCap}
+Portfolio Value: $${equity}
+Current Positions: ${positionsCount}
 
 Analyze:
 1. Position sizing recommendation
@@ -216,6 +243,12 @@ Format as JSON:
     parseTechnicalResponse(response) {
         try {
             const parsed = JSON.parse(response);
+            if (typeof parsed !== 'object' || parsed === null) {
+                throw new Error('Invalid response: not an object');
+            }
+            if (parsed.confidence !== undefined && (typeof parsed.confidence !== 'number' || parsed.confidence < 0 || parsed.confidence > 1)) {
+                throw new Error('Invalid confidence value');
+            }
             return {
                 trend: parsed.trend || 'neutral',
                 confidence: Math.max(0, Math.min(1, parsed.confidence || 0.5)),
@@ -239,6 +272,12 @@ Format as JSON:
     parseRiskResponse(response) {
         try {
             const parsed = JSON.parse(response);
+            if (typeof parsed !== 'object' || parsed === null) {
+                throw new Error('Invalid response: not an object');
+            }
+            if (parsed.confidence !== undefined && (typeof parsed.confidence !== 'number' || parsed.confidence < 0 || parsed.confidence > 1)) {
+                throw new Error('Invalid confidence value');
+            }
             return {
                 risk_level: parsed.risk_level || 'medium',
                 confidence: Math.max(0, Math.min(1, parsed.confidence || 0.5)),
@@ -262,6 +301,12 @@ Format as JSON:
     parseSentimentResponse(response) {
         try {
             const parsed = JSON.parse(response);
+            if (typeof parsed !== 'object' || parsed === null) {
+                throw new Error('Invalid response: not an object');
+            }
+            if (parsed.confidence !== undefined && (typeof parsed.confidence !== 'number' || parsed.confidence < 0 || parsed.confidence > 1)) {
+                throw new Error('Invalid confidence value');
+            }
             return {
                 sentiment: parsed.sentiment || 'neutral',
                 confidence: Math.max(0, Math.min(1, parsed.confidence || 0.5)),
@@ -285,6 +330,12 @@ Format as JSON:
     parseStrategyResponse(response) {
         try {
             const parsed = JSON.parse(response);
+            if (typeof parsed !== 'object' || parsed === null) {
+                throw new Error('Invalid response: not an object');
+            }
+            if (parsed.confidence !== undefined && (typeof parsed.confidence !== 'number' || parsed.confidence < 0 || parsed.confidence > 1)) {
+                throw new Error('Invalid confidence value');
+            }
             return {
                 action: parsed.action || 'hold',
                 confidence: Math.max(0, Math.min(1, parsed.confidence || 0.5)),
@@ -409,13 +460,11 @@ Format as JSON:
         console.log(`🤖 Starting AI analysis for ${marketData.symbol}...`);
 
         try {
-            // Run all analyses in parallel
-            const [technical, risk, sentiment, strategy] = await Promise.all([
-                this.getTechnicalAnalysis(marketData),
-                this.getRiskAssessment(marketData, portfolioData),
-                this.getMarketSentiment(marketData, newsData),
-                this.getTradingStrategy(marketData, null, null) // Will be updated with results
-            ]);
+            // Run all analyses sequentially to respect per-call rate limiting
+            const technical = await this.getTechnicalAnalysis(marketData);
+            const risk = await this.getRiskAssessment(marketData, portfolioData);
+            const sentiment = await this.getMarketSentiment(marketData, newsData);
+            const strategy = await this.getTradingStrategy(marketData, null, null); // Will be updated with results
 
             // Calculate weighted decision score
             let decisionScore = 0;

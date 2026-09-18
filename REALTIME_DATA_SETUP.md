@@ -54,17 +54,30 @@ Your dashboard has been upgraded with real-time US stock market data! 🚀
    touch .env.local
    ```
 
-2. Add your Alpaca API keys to `.env.local`:
+2. Add your Alpaca API key (public) to `.env.local`:
    ```env
-   # Alpaca Markets API Keys (Primary)
+   # Alpaca Markets API Key (Primary) - safe for client-side use
    REACT_APP_ALPACA_API_KEY=your_alpaca_api_key_here
-   REACT_APP_ALPACA_SECRET_KEY=your_alpaca_secret_key_here
    REACT_APP_ALPACA_PAPER_TRADING=true
 
    # Backup APIs (Optional)
    REACT_APP_FINNHUB_API_KEY=your_finnhub_api_key_here
    REACT_APP_ALPHA_VANTAGE_API_KEY=your_alpha_vantage_api_key_here
    ```
+
+   Your Alpaca **secret key** must NEVER be stored in a `REACT_APP_`-prefixed
+   variable, since anything with that prefix is bundled into the client-side
+   JavaScript and is publicly visible to anyone who opens your app. Instead,
+   store it as a server-only environment variable (no public prefix) on the
+   backend/server that proxies requests to Alpaca, e.g.:
+   ```bash
+   # server-only — never prefix with REACT_APP_, never commit to version control
+   ALPACA_SECRET_KEY=your_alpaca_secret_key_here
+   ```
+   and read it with `process.env.ALPACA_SECRET_KEY` in your server code only.
+   Secrets like this should never be committed to source control or shared
+   in documentation — use a `.env.local` file that is git-ignored, or your
+   platform's secret manager.
 
 3. Restart your development server:
    ```bash

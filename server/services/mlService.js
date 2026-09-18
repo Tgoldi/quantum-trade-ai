@@ -3,6 +3,7 @@ const { spawn } = require('child_process');
 const path = require('path');
 const { cache } = require('../database/db');
 const realTimeData = require('./realTimeDataService');
+const monitoringService = require('./monitoringService');
 
 class MLService {
     constructor() {
@@ -47,7 +48,7 @@ class MLService {
 
             return decision;
         } catch (error) {
-            console.error(`Error getting AI decision for ${symbol}:`, error);
+            monitoringService.error('Error getting AI decision', { symbol, message: error.message });
             return this.getFallbackDecision(symbol);
         }
     }
@@ -88,7 +89,7 @@ class MLService {
                 volatility: volatility * 100
             };
         } catch (error) {
-            console.error('Price prediction error:', error);
+            monitoringService.error('Price prediction error', { symbol, message: error.message });
             return { model: 'lstm', confidence: 0, prediction: null };
         }
     }
@@ -127,7 +128,7 @@ class MLService {
                 confidence: overallSignal.confidence
             };
         } catch (error) {
-            console.error('Pattern recognition error:', error);
+            monitoringService.error('Pattern recognition error', { symbol, message: error.message });
             return { model: 'pattern', confidence: 0, signal: 'neutral' };
         }
     }
@@ -175,7 +176,7 @@ class MLService {
                 confidence: Math.abs(bullishCount - bearishCount) / signals.length
             };
         } catch (error) {
-            console.error('Technical analysis error:', error);
+            monitoringService.error('Technical analysis error', { symbol, message: error.message });
             return { model: 'technical', confidence: 0, signal: 'neutral' };
         }
     }
@@ -201,7 +202,7 @@ class MLService {
                 }
             };
         } catch (error) {
-            console.error('Sentiment analysis error:', error);
+            monitoringService.error('Sentiment analysis error', { symbol, message: error.message });
             return { model: 'sentiment', confidence: 0, signal: 'neutral', score: 0 };
         }
     }

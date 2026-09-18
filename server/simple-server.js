@@ -11,6 +11,9 @@ require('dotenv').config();
 const app = express();
 const PORT = process.env.PORT || 3001;
 
+// Trust the first proxy hop so req.ip reflects the real client IP
+app.set('trust proxy', 1);
+
 // Middleware
 
 app.use(helmet());
@@ -26,6 +29,15 @@ const apiLimiter = rateLimit({
     max: 100 // limit each IP to 100 requests per windowMs
 });
 app.use('/api/', apiLimiter);
+
+// Stricter rate limiting for order placement (mutating/sensitive endpoint)
+const ordersLimiter = rateLimit({
+    windowMs: 15 * 60 * 1000, // 15 minutes
+    max: 20, // limit each IP to 20 order requests per windowMs
+    keyGenerator: (req) => req.ip,
+    standardHeaders: true,
+    legacyHeaders: false
+});
 
 // WebSocket server for real-time data streaming (mock data)
 const wss = new WebSocket.Server({ port: 8080 });
@@ -273,7 +285,7 @@ app.get('/api/market-movers', async (req, res) => {
 });
 
 // Place order (mock)
-app.post('/api/orders', async (req, res) => {
+app.post('/api/orders', ordersLimiter, async (req, res) => {
     const { symbol, qty, side, type = 'market', timeInForce = 'day', limitPrice } = req.body;
 
     // Return mock order

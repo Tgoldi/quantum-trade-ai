@@ -14,6 +14,7 @@ const app = express();
 const PORT = process.env.PORT || 3001;
 
 // Middleware
+app.set('trust proxy', 1);
 app.use(helmet());
 app.use(cors({ origin: process.env.FRONTEND_URL || 'https://yourdomain.com' }));
 app.use(express.json({ limit: '1mb' }));
@@ -24,6 +25,24 @@ const apiLimiter = rateLimit({
     max: 100 // limit each IP to 100 requests per windowMs
 });
 app.use('/api/', apiLimiter);
+
+// Require an internal service API key on AI trading endpoints to prevent
+// unauthenticated public exposure of costly AI analysis.
+function requireApiKey(req, res, next) {
+    const providedKey = req.get('x-api-key');
+    const expectedKey = process.env.INTERNAL_API_KEY;
+
+    if (!expectedKey) {
+        console.error('INTERNAL_API_KEY is not configured; rejecting AI endpoint access.');
+        return res.status(503).json({ error: 'AI service not configured' });
+    }
+
+    if (!providedKey || providedKey !== expectedKey) {
+        return res.status(401).json({ error: 'Unauthorized' });
+    }
+
+    next();
+}
 
 // Initialize Multi-Model AI Trading Service
 // Initialize Multi-Model AI Trading Service with Docker-optimized settings
@@ -128,7 +147,7 @@ app.get('/api/health', async (req, res) => {
 });
 
 // Multi-Model AI Analysis (Single Stock)
-app.post('/api/ai/ensemble', async (req, res) => {
+app.post('/api/ai/ensemble', apiLimiter, requireApiKey, async (req, res) => {
     try {
         const { symbol, portfolio_value } = req.body;
 
@@ -180,7 +199,7 @@ app.post('/api/ai/ensemble', async (req, res) => {
 });
 
 // Batch Multi-Model Analysis
-app.post('/api/ai/ensemble-batch', async (req, res) => {
+app.post('/api/ai/ensemble-batch', apiLimiter, requireApiKey, async (req, res) => {
     try {
         const { symbols, portfolio_value } = req.body;
 
@@ -279,7 +298,7 @@ app.get('/api/ai/model-stats', (req, res) => {
 });
 
 // Model warmup endpoint
-app.post('/api/ai/warmup', async (req, res) => {
+app.post('/api/ai/warmup', apiLimiter, requireApiKey, async (req, res) => {
     try {
         console.log('🔥 Manual model warmup requested...');
         await multiAI.warmUpModels();
@@ -296,7 +315,7 @@ app.post('/api/ai/warmup', async (req, res) => {
 });
 
 // Cache management
-app.delete('/api/ai/cache', (req, res) => {
+app.delete('/api/ai/cache', apiLimiter, requireApiKey, (req, res) => {
     multiAI.cache.clear();
     res.json({
         status: 'success',
@@ -306,7 +325,7 @@ app.delete('/api/ai/cache', (req, res) => {
 });
 
 // Standard endpoints for compatibility
-app.get('/api/account', async (req, res) => {
+app.get('/api/account', apiLimiter, requireApiKey, async (req, res) => {
     if (!alpaca) {
         return res.status(503).json({ error: 'Alpaca not configured' });
     }

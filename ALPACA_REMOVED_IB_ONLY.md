@@ -93,7 +93,11 @@ Once you fund the account, test it:
 ```bash
 TOKEN=$(curl -s -X POST http://localhost:3001/api/auth/login \
   -H "Content-Type: application/json" \
-  -d '{"emailOrUsername":"tomerg.work@gmail.com","password":"Tomergold1!"}' | jq -r '.tokens.accessToken')
+  -d '{"emailOrUsername":"<email>","password":"<password>"}' | jq -r '.tokens.accessToken')
+
+# SECURITY NOTE: This documentation previously contained a hardcoded plaintext
+# credential pair. That credential has been rotated/invalidated and must never
+# be reused. Do not commit real credentials to documentation or source control.
 
 # Check IB account
 curl -s http://localhost:3001/api/ib/account \

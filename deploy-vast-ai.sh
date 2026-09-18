@@ -108,11 +108,18 @@ fi
 echo -e "\n${BLUE}⚙️  Step 4: Setting up environment...${NC}"
 
 # Check for .env.local
+# NOTE: VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY must be set as environment
+# variables before running this script. Do NOT hardcode credentials here.
+if [ -z "$VITE_SUPABASE_URL" ] || [ -z "$VITE_SUPABASE_ANON_KEY" ]; then
+    echo -e "${RED}❌ Error: VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY environment variables must be set before deploying.${NC}"
+    exit 1
+fi
+
 if [ ! -f ".env.local" ]; then
     echo -e "${YELLOW}Creating .env.local file...${NC}"
-    cat > .env.local << 'EOF'
-VITE_SUPABASE_URL=https://ngwbwanpamfqoaitofih.supabase.co
-VITE_SUPABASE_ANON_KEY=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im5nd2J3YW5wYW1mcW9haXRvZmloIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjE1MDMzNDgsImV4cCI6MjA3NzA3OTM0OH0.6kifg9e7LDp2uacxSCsDKSEdFcdpMPzFen1oMgS3iuI
+    cat > .env.local << EOF
+VITE_SUPABASE_URL=$VITE_SUPABASE_URL
+VITE_SUPABASE_ANON_KEY=$VITE_SUPABASE_ANON_KEY
 EOF
     echo -e "${GREEN}✅ Created .env.local${NC}"
 else
@@ -120,6 +127,13 @@ else
 fi
 
 # Check for server/.env
+# NOTE: DB_PASSWORD must be set as an environment variable before running this
+# script. Do NOT hardcode database passwords here.
+if [ -z "$DB_PASSWORD" ] || [ "$DB_PASSWORD" = "postgres_secure_password_change_this" ]; then
+    echo -e "${RED}❌ Error: DB_PASSWORD must be set to a strong value${NC}"
+    exit 1
+fi
+
 if [ ! -f "server/.env" ]; then
     echo -e "${YELLOW}Creating server/.env file...${NC}"
     JWT_SECRET=$(openssl rand -base64 32 2>/dev/null || echo "change-this-secret-key-in-production")
@@ -129,7 +143,7 @@ DB_HOST=postgres
 DB_PORT=5432
 DB_NAME=quantumtrade
 DB_USER=postgres
-DB_PASSWORD=postgres_secure_password_change_this
+DB_PASSWORD=$DB_PASSWORD
 
 # Redis Configuration
 REDIS_HOST=redis

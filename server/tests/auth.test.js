@@ -8,6 +8,10 @@ jest.mock('../database/db');
 jest.mock('bcryptjs');
 jest.mock('jsonwebtoken');
 
+const TEST_PASSWORD = process.env.TEST_USER_PASSWORD || 'test-password-placeholder';
+const TEST_NEW_PASSWORD = process.env.TEST_USER_NEW_PASSWORD || 'test-new-password-placeholder';
+const TEST_OLD_PASSWORD = process.env.TEST_USER_OLD_PASSWORD || 'test-old-password-placeholder';
+
 describe('Authentication Service', () => {
     beforeEach(() => {
         jest.clearAllMocks();
@@ -32,7 +36,7 @@ describe('Authentication Service', () => {
             const userData = {
                 email: 'test@example.com',
                 username: 'testuser',
-                password: 'password123',
+                password: TEST_PASSWORD,
                 firstName: 'Test',
                 lastName: 'User'
             };
@@ -51,7 +55,7 @@ describe('Authentication Service', () => {
             const userData = {
                 email: 'existing@example.com',
                 username: 'testuser',
-                password: 'password123'
+                password: TEST_PASSWORD
             };
 
             await expect(authService.register(userData)).rejects.toThrow(
@@ -96,7 +100,7 @@ describe('Authentication Service', () => {
 
             const result = await authService.login({
                 emailOrUsername: 'test@example.com',
-                password: 'password123'
+                password: TEST_PASSWORD
             });
 
             expect(result).toHaveProperty('user');
@@ -110,7 +114,7 @@ describe('Authentication Service', () => {
 
             await expect(authService.login({
                 emailOrUsername: 'wrong@example.com',
-                password: 'password123'
+                password: TEST_PASSWORD
             })).rejects.toThrow('Invalid credentials');
         });
 
@@ -143,7 +147,7 @@ describe('Authentication Service', () => {
 
             await expect(authService.login({
                 emailOrUsername: 'test@example.com',
-                password: 'password123'
+                password: TEST_PASSWORD
             })).rejects.toThrow('Account is disabled');
         });
     });
@@ -206,8 +210,8 @@ describe('Authentication Service', () => {
 
             const result = await authService.changePassword(
                 'user-123',
-                'oldpassword',
-                'newpassword123'
+                TEST_OLD_PASSWORD,
+                TEST_NEW_PASSWORD
             );
 
             expect(result.success).toBe(true);
@@ -224,7 +228,7 @@ describe('Authentication Service', () => {
             await expect(authService.changePassword(
                 'user-123',
                 'wrongpassword',
-                'newpassword123'
+                TEST_NEW_PASSWORD
             )).rejects.toThrow('Current password is incorrect');
         });
     });
