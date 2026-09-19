@@ -1,11 +1,11 @@
 #!/bin/bash
 # Quick connection script for RunPod
 
-SSH_KEY="$HOME/.ssh/id_ed25519_runpod_full"
-RUNPOD_IP="69.30.85.169"
-RUNPOD_PORT="22183"
-RUNPOD_USER="root"
-RUNPOD_PROXY="cu82csig6miezh-64411956@ssh.runpod.io"
+SSH_KEY="${SSH_KEY_PATH:-$HOME/.ssh/id_ed25519_runpod_full}"
+RUNPOD_IP="${RUNPOD_IP:?Error: RUNPOD_IP environment variable is not set}"
+RUNPOD_PORT="${RUNPOD_PORT:?Error: RUNPOD_PORT environment variable is not set}"
+RUNPOD_USER="${RUNPOD_USER:?Error: RUNPOD_USER environment variable is not set}"
+RUNPOD_PROXY="${RUNPOD_PROXY:?Error: RUNPOD_PROXY environment variable is not set}"
 
 echo "🔌 Connecting to RunPod..."
 echo ""

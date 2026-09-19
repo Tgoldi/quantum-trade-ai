@@ -80,15 +80,21 @@ class TradeJournalService {
     /**
      * Analyze trading patterns and mistakes
      */
-    async analyzePerformance(portfolioId, timeframe = '30d') {
+    async analyzePerformance(portfolioId, userId, timeframe = '30d') {
+        if (!userId) {
+            throw new Error('userId is required to analyze performance');
+        }
+
         const trades = await query(
             `SELECT t.*, tj.*
        FROM trades t
        LEFT JOIN trade_journal tj ON t.id = tj.trade_id
+       JOIN portfolios p ON p.id = t.portfolio_id
        WHERE t.portfolio_id = $1
+       AND p.user_id = $2
        AND t.execution_time >= NOW() - INTERVAL '${timeframe}'
        ORDER BY t.execution_time DESC`,
-            [portfolioId]
+            [portfolioId, userId]
         );
 
         // Calculate win/loss patterns
@@ -447,20 +453,26 @@ class TradeJournalService {
     /**
      * Get trading statistics for period
      */
-    async getStatistics(portfolioId, period = '30d') {
+    async getStatistics(portfolioId, userId, period = '30d') {
+        if (!userId) {
+            throw new Error('userId is required to get statistics');
+        }
+
         const stats = await query(
             `SELECT
         COUNT(*) as total_trades,
-        SUM(CASE WHEN side = 'buy' THEN 1 ELSE 0 END) as buys,
-        SUM(CASE WHEN side = 'sell' THEN 1 ELSE 0 END) as sells,
-        AVG(price) as avg_price,
-        SUM(commission) as total_commission,
-        COUNT(DISTINCT symbol) as symbols_traded,
-        COUNT(DISTINCT DATE(execution_time)) as trading_days
-      FROM trades
-      WHERE portfolio_id = $1
-      AND execution_time >= NOW() - INTERVAL '${period}'`,
-            [portfolioId]
+        SUM(CASE WHEN t.side = 'buy' THEN 1 ELSE 0 END) as buys,
+        SUM(CASE WHEN t.side = 'sell' THEN 1 ELSE 0 END) as sells,
+        AVG(t.price) as avg_price,
+        SUM(t.commission) as total_commission,
+        COUNT(DISTINCT t.symbol) as symbols_traded,
+        COUNT(DISTINCT DATE(t.execution_time)) as trading_days
+      FROM trades t
+      JOIN portfolios p ON p.id = t.portfolio_id
+      WHERE t.portfolio_id = $1
+      AND p.user_id = $2
+      AND t.execution_time >= NOW() - INTERVAL '${period}'`,
+            [portfolioId, userId]
         );
 
         return stats[0];
@@ -469,14 +481,20 @@ class TradeJournalService {
     /**
      * Export journal entries
      */
-    async exportJournal(portfolioId, format = 'json') {
+    async exportJournal(portfolioId, userId, format = 'json') {
+        if (!userId) {
+            throw new Error('userId is required to export journal');
+        }
+
         const entries = await query(
             `SELECT t.*, tj.*
        FROM trades t
        LEFT JOIN trade_journal tj ON t.id = tj.trade_id
+       JOIN portfolios p ON p.id = t.portfolio_id
        WHERE t.portfolio_id = $1
+       AND p.user_id = $2
        ORDER BY t.execution_time DESC`,
-            [portfolioId]
+            [portfolioId, userId]
         );
 
         if (format === 'csv') {

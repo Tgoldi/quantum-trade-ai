@@ -206,8 +206,8 @@ describe('Authentication Service', () => {
 
             const result = await authService.changePassword(
                 'user-123',
-                'oldpassword',
-                'newpassword123'
+                process.env.TEST_OLD_PASSWORD,
+                process.env.TEST_NEW_PASSWORD
             );
 
             expect(result.success).toBe(true);
@@ -223,8 +223,8 @@ describe('Authentication Service', () => {
 
             await expect(authService.changePassword(
                 'user-123',
-                'wrongpassword',
-                'newpassword123'
+                process.env.TEST_WRONG_PASSWORD,
+                process.env.TEST_NEW_PASSWORD
             )).rejects.toThrow('Current password is incorrect');
         });
     });

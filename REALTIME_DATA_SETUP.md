@@ -58,7 +58,8 @@ Your dashboard has been upgraded with real-time US stock market data! 🚀
    ```env
    # Alpaca Markets API Keys (Primary)
    REACT_APP_ALPACA_API_KEY=your_alpaca_api_key_here
-   REACT_APP_ALPACA_SECRET_KEY=your_alpaca_secret_key_here
+   # server only — no public prefix. Never share or commit this value:
+   ALPACA_SECRET_KEY=your_alpaca_secret_key_here
    REACT_APP_ALPACA_PAPER_TRADING=true
 
    # Backup APIs (Optional)

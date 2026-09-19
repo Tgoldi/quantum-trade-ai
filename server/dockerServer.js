@@ -128,7 +128,7 @@ app.get('/api/health', async (req, res) => {
 });
 
 // Multi-Model AI Analysis (Single Stock)
-app.post('/api/ai/ensemble', async (req, res) => {
+app.post('/api/ai/ensemble', apiLimiter, async (req, res) => {
     try {
         const { symbol, portfolio_value } = req.body;
 
@@ -180,7 +180,7 @@ app.post('/api/ai/ensemble', async (req, res) => {
 });
 
 // Batch Multi-Model Analysis
-app.post('/api/ai/ensemble-batch', async (req, res) => {
+app.post('/api/ai/ensemble-batch', apiLimiter, async (req, res) => {
     try {
         const { symbols, portfolio_value } = req.body;
 
@@ -279,7 +279,7 @@ app.get('/api/ai/model-stats', (req, res) => {
 });
 
 // Model warmup endpoint
-app.post('/api/ai/warmup', async (req, res) => {
+app.post('/api/ai/warmup', apiLimiter, async (req, res) => {
     try {
         console.log('🔥 Manual model warmup requested...');
         await multiAI.warmUpModels();
@@ -296,7 +296,7 @@ app.post('/api/ai/warmup', async (req, res) => {
 });
 
 // Cache management
-app.delete('/api/ai/cache', (req, res) => {
+app.delete('/api/ai/cache', apiLimiter, (req, res) => {
     multiAI.cache.clear();
     res.json({
         status: 'success',

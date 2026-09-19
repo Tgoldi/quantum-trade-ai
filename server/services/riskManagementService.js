@@ -19,7 +19,7 @@ class RiskManagementService {
     /**
      * Validate trade before execution
      */
-    async validateTrade(portfolioId, trade) {
+    async validateTrade(portfolioId, trade, userId) {
         const checks = {
             passed: true,
             violations: [],
@@ -29,7 +29,7 @@ class RiskManagementService {
 
         try {
             // Get portfolio state
-            const portfolio = await this.getPortfolioState(portfolioId);
+            const portfolio = await this.getPortfolioState(portfolioId, userId);
 
             // Check 1: Position size limit
             const positionSizeCheck = await this.checkPositionSize(portfolio, trade);
@@ -119,7 +119,7 @@ class RiskManagementService {
      * Check daily loss limit
      */
     async checkDailyLoss(portfolio, trade) {
-        const todayPnL = await this.getTodayPnL(portfolio.id);
+        const todayPnL = await this.getTodayPnL(portfolio.id, portfolio.userId);
         const maxLoss = portfolio.totalValue * this.riskLimits.maxDailyLoss;
 
         if (Math.abs(todayPnL) >= maxLoss) {
@@ -295,8 +295,8 @@ class RiskManagementService {
     /**
      * Calculate Value at Risk (VaR)
      */
-    async calculateVaR(portfolioId, confidenceLevel = 0.95, timeHorizon = 1) {
-        const portfolio = await this.getPortfolioState(portfolioId);
+    async calculateVaR(portfolioId, confidenceLevel = 0.95, timeHorizon = 1, userId) {
+        const portfolio = await this.getPortfolioState(portfolioId, userId);
         const positions = portfolio.positions;
 
         if (positions.length === 0) {
@@ -338,11 +338,11 @@ class RiskManagementService {
     /**
      * Calculate portfolio metrics
      */
-    async calculatePortfolioMetrics(portfolioId) {
-        const portfolio = await this.getPortfolioState(portfolioId);
+    async calculatePortfolioMetrics(portfolioId, userId) {
+        const portfolio = await this.getPortfolioState(portfolioId, userId);
         const trades = await query(
-            'SELECT * FROM trades WHERE portfolio_id = $1 AND execution_time >= NOW() - INTERVAL \'30 days\'',
-            [portfolioId]
+            'SELECT * FROM trades WHERE portfolio_id = $1 AND user_id = $2 AND execution_time >= NOW() - INTERVAL \'30 days\'',
+            [portfolioId, userId]
         );
 
         // Calculate win rate
@@ -368,8 +368,8 @@ class RiskManagementService {
 
         // Calculate max drawdown
         const performanceHistory = await query(
-            'SELECT * FROM performance_metrics WHERE portfolio_id = $1 ORDER BY date',
-            [portfolioId]
+            'SELECT * FROM performance_metrics WHERE portfolio_id = $1 AND user_id = $2 ORDER BY date',
+            [portfolioId, userId]
         );
 
         let maxDrawdown = 0;
@@ -399,15 +399,18 @@ class RiskManagementService {
     /**
      * Get portfolio current state
      */
-    async getPortfolioState(portfolioId) {
-        const cacheKey = `portfolio:state:${portfolioId}`;
+    async getPortfolioState(portfolioId, userId) {
+        const cacheKey = `portfolio:state:${portfolioId}:${userId}`;
         let state = await cache.get(cacheKey);
 
         if (state) {
             return state;
         }
 
-        const [portfolio] = await query('SELECT * FROM portfolios WHERE id = $1', [portfolioId]);
+        const [portfolio] = await query('SELECT * FROM portfolios WHERE id = $1 AND user_id = $2', [portfolioId, userId]);
+        if (!portfolio) {
+            throw new Error('Portfolio not found or access denied');
+        }
         const positions = await query('SELECT * FROM positions WHERE portfolio_id = $1', [portfolioId]);
 
         // Update current prices
@@ -421,6 +424,7 @@ class RiskManagementService {
 
         state = {
             id: portfolio.id,
+            userId: portfolio.user_id,
             cash: parseFloat(portfolio.current_balance),
             positionsValue: totalPositionValue,
             totalValue,
@@ -434,11 +438,11 @@ class RiskManagementService {
     /**
      * Get today's P&L
      */
-    async getTodayPnL(portfolioId) {
+    async getTodayPnL(portfolioId, userId) {
         const today = new Date().toISOString().split('T')[0];
         const [metric] = await query(
-            'SELECT daily_return, portfolio_value FROM performance_metrics WHERE portfolio_id = $1 AND date = $2',
-            [portfolioId, today]
+            'SELECT daily_return, portfolio_value FROM performance_metrics WHERE portfolio_id = $1 AND user_id = $2 AND date = $3',
+            [portfolioId, userId, today]
         );
 
         if (metric) {

@@ -321,6 +321,32 @@ class MonitoringService {
     async getSystemLogs(filters = {}) {
         const { level, component, startDate, endDate, limit = 100 } = filters;
 
+        const validLevels = ['debug', 'info', 'warning', 'error', 'critical'];
+        const validComponents = ['general', 'trading', 'ai', 'auth', 'database', 'api', 'system'];
+
+        if (level !== undefined && !validLevels.includes(level)) {
+            throw new Error('Invalid log level');
+        }
+
+        if (component !== undefined && !validComponents.includes(component)) {
+            throw new Error('Invalid component');
+        }
+
+        const isValidDate = (value) => typeof value === 'string' && !isNaN(Date.parse(value));
+
+        if (startDate !== undefined && !isValidDate(startDate)) {
+            throw new Error('Invalid startDate');
+        }
+
+        if (endDate !== undefined && !isValidDate(endDate)) {
+            throw new Error('Invalid endDate');
+        }
+
+        const parsedLimit = Number(limit);
+        if (!Number.isInteger(parsedLimit) || parsedLimit <= 0 || parsedLimit > 1000) {
+            throw new Error('Invalid limit');
+        }
+
         let whereClauses = [];
         let params = [];
         let paramCount = 1;
@@ -349,7 +375,7 @@ class MonitoringService {
             ? 'WHERE ' + whereClauses.join(' AND ')
             : '';
 
-        params.push(limit);
+        params.push(parsedLimit);
 
         const logs = await query(
             `SELECT * FROM system_logs ${whereClause} ORDER BY timestamp DESC LIMIT $${paramCount}`,

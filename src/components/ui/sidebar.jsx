@@ -62,8 +62,14 @@ const SidebarProvider = React.forwardRef((
       _setOpen(openState)
     }
 
-    // This sets the cookie to keep the sidebar state.
-    document.cookie = `${SIDEBAR_COOKIE_NAME}=${openState}; path=/; max-age=${SIDEBAR_COOKIE_MAX_AGE}; SameSite=Lax; Secure`
+    // This stores the sidebar state client-side only (cosmetic UI preference).
+    // Using localStorage instead of a cookie avoids sending this value to the
+    // server, where it would otherwise need to be treated as untrusted input.
+    try {
+      window.localStorage.setItem(SIDEBAR_COOKIE_NAME, String(openState === true))
+    } catch (e) {
+      // Ignore storage errors (e.g. disabled storage, private browsing).
+    }
   }, [setOpenProp, open])
 
   // Helper to toggle the sidebar.

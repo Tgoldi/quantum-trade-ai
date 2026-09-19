@@ -25,7 +25,14 @@ const apiLimiter = rateLimit({
     windowMs: 15 * 60 * 1000, // 15 minutes
     max: 100 // limit each IP to 100 requests per windowMs
 });
+app.set('trust proxy', 1);
 app.use('/api/', apiLimiter);
+
+const orderLimiter = rateLimit({
+    windowMs: 15 * 60 * 1000, // 15 minutes
+    max: 20, // limit each IP to 20 order submissions per windowMs
+    keyGenerator: (req) => (req.user && req.user.id) ? `${req.ip}:${req.user.id}` : req.ip
+});
 
 // WebSocket server for real-time data streaming (mock data)
 const wss = new WebSocket.Server({ port: 8080 });
@@ -273,7 +280,7 @@ app.get('/api/market-movers', async (req, res) => {
 });
 
 // Place order (mock)
-app.post('/api/orders', async (req, res) => {
+app.post('/api/orders', orderLimiter, async (req, res) => {
     const { symbol, qty, side, type = 'market', timeInForce = 'day', limitPrice } = req.body;
 
     // Return mock order

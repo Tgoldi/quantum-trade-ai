@@ -11,7 +11,15 @@ class PaperTradingService {
     /**
      * Execute a paper trade order
      */
-    async executePaperTrade(portfolioId, order) {
+    async executePaperTrade(portfolioId, userId, order) {
+        const ownerCheck = await query(
+            'SELECT id FROM portfolios WHERE id = $1 AND user_id = $2',
+            [portfolioId, userId]
+        );
+        if (!ownerCheck || ownerCheck.length === 0) {
+            throw new Error('Portfolio not found or access denied');
+        }
+
         const {
             symbol,
             side, // 'buy' or 'sell'
@@ -47,8 +55,8 @@ class PaperTradingService {
             // Check portfolio balance for buy orders
             if (side === 'buy') {
                 const result = await client.query(
-                    'SELECT current_balance FROM portfolios WHERE id = $1',
-                    [portfolioId]
+                    'SELECT current_balance FROM portfolios WHERE id = $1 AND user_id = $2',
+                    [portfolioId, userId]
                 );
                 const portfolio = result.rows[0]; // Fix: access rows array
 
@@ -64,8 +72,8 @@ class PaperTradingService {
             } else {
                 // Check if position exists for sell orders
                 const result = await client.query(
-                    'SELECT quantity FROM positions WHERE portfolio_id = $1 AND symbol = $2',
-                    [portfolioId, symbol]
+                    'SELECT quantity FROM positions WHERE portfolio_id = $1 AND symbol = $2 AND user_id = $3',
+                    [portfolioId, symbol, userId]
                 );
                 const position = result.rows[0]; // Fix: access rows array
 
@@ -89,7 +97,7 @@ class PaperTradingService {
             );
 
             // Update or create position
-            await this.updatePosition(client, portfolioId, symbol, side, quantity, executionPrice);
+            await this.updatePosition(client, portfolioId, symbol, side, quantity, executionPrice, userId);
 
             // Invalidate cache
             await cache.del(`portfolio:${portfolioId}`);
@@ -119,10 +127,10 @@ class PaperTradingService {
     /**
      * Update position after trade
      */
-    async updatePosition(client, portfolioId, symbol, side, quantity, price) {
+    async updatePosition(client, portfolioId, symbol, side, quantity, price, userId) {
         const result = await client.query(
-            'SELECT * FROM positions WHERE portfolio_id = $1 AND symbol = $2',
-            [portfolioId, symbol]
+            'SELECT * FROM positions WHERE portfolio_id = $1 AND symbol = $2 AND user_id = $3',
+            [portfolioId, symbol, userId]
         );
         const existingPosition = result.rows[0]; // Fix: access rows array
 
@@ -214,17 +222,17 @@ class PaperTradingService {
     /**
      * Get portfolio summary
      */
-    async getPortfolioSummary(portfolioId) {
+    async getPortfolioSummary(portfolioId, userId) {
         const cacheKey = `portfolio:${portfolioId}`;
         let summary = await cache.get(cacheKey);
 
-        if (summary) {
+        if (summary && summary.user_id === userId) {
             return summary;
         }
 
         const [portfolio] = await query(
-            'SELECT * FROM portfolio_summary WHERE id = $1',
-            [portfolioId]
+            'SELECT * FROM portfolio_summary WHERE id = $1 AND user_id = $2',
+            [portfolioId, userId]
         );
 
         if (portfolio) {
@@ -237,7 +245,15 @@ class PaperTradingService {
     /**
      * Get portfolio positions
      */
-    async getPositions(portfolioId) {
+    async getPositions(portfolioId, userId) {
+        const ownerCheck = await query(
+            'SELECT id FROM portfolios WHERE id = $1 AND user_id = $2',
+            [portfolioId, userId]
+        );
+        if (!ownerCheck || ownerCheck.length === 0) {
+            throw new Error('Portfolio not found or access denied');
+        }
+
         const positions = await query(
             'SELECT * FROM positions WHERE portfolio_id = $1 ORDER BY market_value DESC',
             [portfolioId],
@@ -260,7 +276,15 @@ class PaperTradingService {
     /**
      * Get trade history
      */
-    async getTradeHistory(portfolioId, limit = 100) {
+    async getTradeHistory(portfolioId, userId, limit = 100) {
+        const ownerCheck = await query(
+            'SELECT id FROM portfolios WHERE id = $1 AND user_id = $2',
+            [portfolioId, userId]
+        );
+        if (!ownerCheck || ownerCheck.length === 0) {
+            throw new Error('Portfolio not found or access denied');
+        }
+
         return await query(
             'SELECT * FROM trades WHERE portfolio_id = $1 ORDER BY execution_time DESC LIMIT $2',
             [portfolioId, limit]
@@ -270,15 +294,15 @@ class PaperTradingService {
     /**
      * Calculate performance metrics
      */
-    async calculatePerformance(portfolioId) {
+    async calculatePerformance(portfolioId, userId) {
         const [portfolio] = await query(
-            'SELECT * FROM portfolios WHERE id = $1',
-            [portfolioId]
+            'SELECT * FROM portfolios WHERE id = $1 AND user_id = $2',
+            [portfolioId, userId]
         );
 
         if (!portfolio) return null;
 
-        const positions = await this.getPositions(portfolioId);
+        const positions = await this.getPositions(portfolioId, userId);
         const totalPositionValue = positions.reduce((sum, p) => sum + parseFloat(p.market_value || 0), 0);
         const totalValue = parseFloat(portfolio.current_balance) + totalPositionValue;
         const totalReturn = totalValue - parseFloat(portfolio.initial_balance);

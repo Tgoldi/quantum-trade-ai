@@ -17,6 +17,14 @@ class InteractiveBrokersBroker extends BaseBroker {
         this.orderCallbacks = new Map();
         this.positionCache = new Map();
         this.accountCache = null;
+        this.requestIdCounter = 1;
+    }
+
+    /**
+     * Generate a unique, monotonically increasing request ID
+     */
+    getNextRequestId() {
+        return this.requestIdCounter++;
     }
 
     /**
@@ -217,6 +225,12 @@ class InteractiveBrokersBroker extends BaseBroker {
 
         this.validateOrder(order);
 
+        const riskManagementService = require('../riskManagementService');
+        const riskCheck = await riskManagementService.validateTrade(order, this.accountId);
+        if (!riskCheck || riskCheck.approved === false) {
+            throw new Error(`Order rejected by risk management: ${riskCheck && riskCheck.reason ? riskCheck.reason : 'risk limits exceeded'}`);
+        }
+
         return new Promise((resolve, reject) => {
             const orderId = this.nextOrderId++;
 
@@ -229,11 +243,14 @@ class InteractiveBrokersBroker extends BaseBroker {
             };
 
             // Create IB order
+            const validatedSide = order.side.toLowerCase() === 'buy' ? OrderAction.BUY : OrderAction.SELL;
+            const validatedOrderType = order.orderType.toLowerCase() === 'market' ? OrderType.MKT : OrderType.LMT;
+
             const ibOrder = {
                 orderId: orderId,
-                action: order.side.toLowerCase() === 'buy' ? OrderAction.BUY : OrderAction.SELL,
+                action: validatedSide,
                 totalQuantity: order.quantity,
-                orderType: order.orderType.toUpperCase() === 'MARKET' ? OrderType.MKT : OrderType.LMT,
+                orderType: validatedOrderType,
                 tif: TimeInForce.DAY
             };
 
@@ -301,7 +318,7 @@ class InteractiveBrokersBroker extends BaseBroker {
         }
 
         return new Promise((resolve, reject) => {
-            const reqId = Date.now(); // Unique request ID
+            const reqId = this.getNextRequestId(); // Unique request ID
 
             const contract = {
                 symbol: symbol.toUpperCase(),
@@ -353,7 +370,7 @@ class InteractiveBrokersBroker extends BaseBroker {
         }
 
         return new Promise((resolve, reject) => {
-            const reqId = Date.now();
+            const reqId = this.getNextRequestId();
             const bars = [];
 
             const contract = {

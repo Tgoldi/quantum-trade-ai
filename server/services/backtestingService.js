@@ -13,15 +13,15 @@ class BacktestingService {
     /**
      * Run backtest with historical data
      */
-    async runBacktest(config) {
+    async runBacktest(config, authenticatedUserId) {
         const {
             strategyConfig,
             symbols,
             startDate,
             endDate,
-            initialCapital = 100000,
-            userId
+            initialCapital = 100000
         } = config;
+        const userId = authenticatedUserId;
 
         console.log(`📊 Running backtest: ${strategyConfig.name} from ${startDate} to ${endDate}`);
 
@@ -521,6 +521,22 @@ class BacktestingService {
     }
 
     /**
+     * Retrieve a single backtest result, scoped to the authenticated owner
+     */
+    async getBacktestResult(backtestId, userId) {
+        const [backtest] = await query(
+            'SELECT * FROM backtest_results WHERE id = $1 AND user_id = $2',
+            [backtestId, userId]
+        );
+
+        if (!backtest) {
+            throw new Error('Backtest not found');
+        }
+
+        return backtest;
+    }
+
+    /**
      * Save backtest results to database
      */
     async saveBacktestResults(data) {
@@ -559,11 +575,11 @@ class BacktestingService {
     /**
      * Monte Carlo simulation
      */
-    async runMonteCarloSimulation(backtestId, numSimulations = 1000) {
-        // Get backtest results
+    async runMonteCarloSimulation(backtestId, numSimulations = 1000, userId) {
+        // Get backtest results, scoped to the authenticated owner
         const [backtest] = await query(
-            'SELECT * FROM backtest_results WHERE id = $1',
-            [backtestId]
+            'SELECT * FROM backtest_results WHERE id = $1 AND user_id = $2',
+            [backtestId, userId]
         );
 
         if (!backtest) {

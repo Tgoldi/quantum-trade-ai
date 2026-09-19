@@ -16,6 +16,11 @@ class MLService {
      * Get AI trading decision for a symbol
      */
     async getAIDecision(symbol, portfolioContext = null) {
+        const validSymbolRegex = /^[A-Z]{1,5}$/;
+        if (typeof symbol !== 'string' || !validSymbolRegex.test(symbol)) {
+            throw new Error('Invalid symbol');
+        }
+
         const cacheKey = `ai:decision:${symbol}`;
 
         // Check cache (5 minute TTL)

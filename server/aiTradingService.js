@@ -23,7 +23,37 @@ class AITradingService {
         };
     }
 
-    async queryLLM(model, prompt, temperature = 0.7) {
+    async queryLLM(model, prompt, temperature = 0.7, userId = 'system') {
+        const now = Date.now();
+        const windowMs = 60 * 1000;
+        const maxCallsPerWindow = 10;
+        const maxTokensPerDay = 50000;
+        const maxTokensPerRequest = 500;
+
+        if (!this._rateLimitState) {
+            this._rateLimitState = new Map();
+        }
+        let state = this._rateLimitState.get(userId);
+        const today = new Date().toISOString().slice(0, 10);
+        if (!state || state.day !== today) {
+            state = { day: today, tokensUsedToday: 0, callTimestamps: [] };
+        }
+
+        // Prune call timestamps outside the current window
+        state.callTimestamps = state.callTimestamps.filter(ts => now - ts < windowMs);
+
+        if (state.callTimestamps.length >= maxCallsPerWindow) {
+            console.error(`⚠️ Rate limit exceeded for LLM calls (user=${userId})`);
+            this._rateLimitState.set(userId, state);
+            return null;
+        }
+
+        if (state.tokensUsedToday >= maxTokensPerDay) {
+            console.error(`⚠️ Daily token budget exceeded (user=${userId})`);
+            this._rateLimitState.set(userId, state);
+            return null;
+        }
+
         try {
             const response = await axios.post(`${this.ollamaUrl}/api/generate`, {
                 model: model,
@@ -32,11 +62,17 @@ class AITradingService {
                 options: {
                     temperature: temperature,
                     top_p: 0.9,
-                    max_tokens: 1000
+                    max_tokens: maxTokensPerRequest
                 }
             }, {
                 timeout: 15000 // 15 second timeout
             });
+
+            state.callTimestamps.push(now);
+            state.tokensUsedToday += maxTokensPerRequest;
+            this._rateLimitState.set(userId, state);
+
+            console.log(`📊 LLM call logged: model=${model}, callsInWindow=${state.callTimestamps.length}/${maxCallsPerWindow}`);
 
             return response.data.response;
         } catch (error) {

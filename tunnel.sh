@@ -1,11 +1,11 @@
 #!/bin/bash
 # SSH Tunnel Helper for Vast.ai Quantum Trade AI
 
-SSH_KEY="$HOME/.ssh/id_ed25519"
-SSH_PORT=41221
-REMOTE_HOST="50.217.254.167"
-LOCAL_PORT=3000
-REMOTE_PORT=3000
+SSH_KEY="${SSH_KEY:-$HOME/.ssh/id_ed25519}"
+SSH_PORT="${SSH_PORT:?Error: SSH_PORT environment variable is not set}"
+REMOTE_HOST="${REMOTE_HOST:?Error: REMOTE_HOST environment variable is not set}"
+LOCAL_PORT="${LOCAL_PORT:-3000}"
+REMOTE_PORT="${REMOTE_PORT:-3000}"
 
 case "$1" in
   start)

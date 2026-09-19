@@ -120,11 +120,17 @@ class BaseBroker {
         if (!order.side || !['buy', 'sell'].includes(order.side.toLowerCase())) {
             throw new Error('Side must be "buy" or "sell"');
         }
-        if (!order.quantity || order.quantity <= 0) {
-            throw new Error('Quantity must be positive');
+        if (!order.quantity || typeof order.quantity !== 'number' || !Number.isFinite(order.quantity) ||
+            !Number.isInteger(order.quantity) || order.quantity <= 0 || order.quantity > 100000) {
+            throw new Error('Quantity must be a positive integer within allowed bounds');
         }
-        if (!order.orderType) {
-            throw new Error('Order type is required');
+        if (!order.orderType || !['market', 'limit'].includes(order.orderType.toLowerCase())) {
+            throw new Error('Order type must be "market" or "limit"');
+        }
+        if (order.orderType.toLowerCase() === 'limit') {
+            if (typeof order.limitPrice !== 'number' || !Number.isFinite(order.limitPrice) || order.limitPrice <= 0) {
+                throw new Error('A valid positive limitPrice is required for limit orders');
+            }
         }
         return true;
     }

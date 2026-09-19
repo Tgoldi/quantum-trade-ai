@@ -3,6 +3,8 @@
 
 const express = require('express');
 const cors = require('cors');
+const helmet = require('helmet');
+const rateLimit = require('express-rate-limit');
 const WebSocket = require('ws');
 const Alpaca = require('@alpacahq/alpaca-trade-api');
 const OptimizedAITradingService = require('./optimizedAIService');
@@ -12,12 +14,30 @@ require('dotenv').config();
 const app = express();
 const PORT = process.env.PORT || 3001;
 
+app.set('trust proxy', 1);
+
 // Middleware
+app.use(helmet());
 app.use(cors({
     origin: process.env.FRONTEND_URL || 'http://localhost:5173',
     credentials: true
 }));
-app.use(express.json());
+app.use(express.json({ limit: '1mb' }));
+
+const apiLimiter = rateLimit({ windowMs: 15 * 60 * 1000, max: 100 });
+app.use('/api/', apiLimiter);
+
+// Simple auth middleware: requires a valid login token
+function requireAuth(req, res, next) {
+    const authHeader = req.headers['authorization'] || '';
+    const token = authHeader.startsWith('Bearer ') ? authHeader.slice(7) : null;
+
+    if (!token || !process.env.API_AUTH_TOKEN || token !== process.env.API_AUTH_TOKEN) {
+        return res.status(401).json({ error: 'Unauthorized: valid login token required' });
+    }
+
+    next();
+}
 
 // Initialize Alpaca SDK
 let alpaca = null;
@@ -118,6 +138,9 @@ if (dataStream) {
             source: 'alpaca'
         };
 
+        if (['__proto__', 'constructor', 'prototype'].includes(symbol)) {
+            return;
+        }
         realtimeData.set(symbol, { ...realtimeData.get(symbol), ...data });
 
         // Broadcast to frontend clients
@@ -143,6 +166,9 @@ if (dataStream) {
             source: 'alpaca'
         };
 
+        if (['__proto__', 'constructor', 'prototype'].includes(symbol)) {
+            return;
+        }
         realtimeData.set(symbol, { ...realtimeData.get(symbol), ...data });
 
         // Broadcast to frontend clients
@@ -175,7 +201,7 @@ app.get('/api/health', async (req, res) => {
 });
 
 // Get account information
-app.get('/api/account', async (req, res) => {
+app.get('/api/account', requireAuth, async (req, res) => {
     if (!alpaca) {
         return res.status(400).json({ error: 'Alpaca not configured' });
     }
@@ -190,7 +216,7 @@ app.get('/api/account', async (req, res) => {
 });
 
 // Get positions
-app.get('/api/positions', async (req, res) => {
+app.get('/api/positions', requireAuth, async (req, res) => {
     if (!alpaca) {
         return res.status(400).json({ error: 'Alpaca not configured' });
     }
@@ -205,7 +231,7 @@ app.get('/api/positions', async (req, res) => {
 });
 
 // Get portfolio summary
-app.get('/api/portfolio', async (req, res) => {
+app.get('/api/portfolio', requireAuth, async (req, res) => {
     if (!alpaca) {
         return res.status(400).json({ error: 'Alpaca not configured' });
     }
@@ -330,7 +356,7 @@ app.get('/api/market-movers', async (req, res) => {
 });
 
 // Place order
-app.post('/api/orders', async (req, res) => {
+app.post('/api/orders', requireAuth, async (req, res) => {
     if (!alpaca) {
         return res.status(400).json({ error: 'Alpaca not configured' });
     }
@@ -359,7 +385,7 @@ app.post('/api/orders', async (req, res) => {
 });
 
 // Get orders
-app.get('/api/orders', async (req, res) => {
+app.get('/api/orders', requireAuth, async (req, res) => {
     if (!alpaca) {
         return res.status(400).json({ error: 'Alpaca not configured' });
     }
@@ -377,7 +403,7 @@ app.get('/api/orders', async (req, res) => {
 });
 
 // AI Trading Analysis
-app.post('/api/ai/analyze', async (req, res) => {
+app.post('/api/ai/analyze', requireAuth, async (req, res) => {
     try {
         const { symbol } = req.body;
 
@@ -487,7 +513,7 @@ app.get('/api/ai/portfolio', async (req, res) => {
 });
 
 // Batch AI Analysis (Multiple stocks)
-app.post('/api/ai/batch', async (req, res) => {
+app.post('/api/ai/batch', requireAuth, async (req, res) => {
     try {
         const { symbols } = req.body;
         
@@ -537,7 +563,7 @@ app.post('/api/ai/batch', async (req, res) => {
 });
 
 // Demo AI Analysis (Simplified)
-app.post('/api/ai/demo', async (req, res) => {
+app.post('/api/ai/demo', requireAuth, async (req, res) => {
     try {
         const { symbol } = req.body;
 
@@ -595,7 +621,7 @@ app.post('/api/ai/demo', async (req, res) => {
 });
 
 // Generate Trading Algorithm
-app.post('/api/ai/algorithm', async (req, res) => {
+app.post('/api/ai/algorithm', requireAuth, async (req, res) => {
     try {
         const { symbol, strategy } = req.body;
 
