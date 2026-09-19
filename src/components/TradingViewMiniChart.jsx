@@ -33,20 +33,11 @@ const TradingViewMiniChart = ({ symbol, width = '100%', height = 300 }) => {
 
         container.current.appendChild(widgetDiv);
 
-        // Load the external script separately
-        const externalScript = document.createElement('script');
-        externalScript.src = 'https://s3.tradingview.com/external-embedding/embed-widget-mini-symbol-overview.js';
-        externalScript.async = true;
-        document.body.appendChild(externalScript);
-
         return () => {
             if (container.current) {
                 while (container.current.firstChild) {
                     container.current.removeChild(container.current.firstChild);
                 }
-            }
-            if (document.body.contains(externalScript)) {
-                document.body.removeChild(externalScript);
             }
         };
     }, [symbol, width, height]);

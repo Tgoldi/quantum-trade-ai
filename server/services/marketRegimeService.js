@@ -14,6 +14,9 @@ class MarketRegimeService {
      * Detect market regime for a symbol
      */
     async detectRegime(symbol) {
+        if (typeof symbol !== 'string' || !/^[A-Za-z0-9.]{1,5}$/.test(symbol)) {
+            return { regime: 'unknown', confidence: 0 };
+        }
         const cacheKey = `regime:${symbol}`;
         let cached = await cache.get(cacheKey);
 

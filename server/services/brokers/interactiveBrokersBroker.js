@@ -217,6 +217,34 @@ class InteractiveBrokersBroker extends BaseBroker {
 
         this.validateOrder(order);
 
+        const MAX_ORDER_QUANTITY = 100000;
+        if (order.quantity > MAX_ORDER_QUANTITY) {
+            throw new Error(`Quantity exceeds maximum allowed order size of ${MAX_ORDER_QUANTITY}`);
+        }
+
+        if (order.orderType.toLowerCase() === 'limit') {
+            if (!order.limitPrice || order.limitPrice <= 0) {
+                throw new Error('A valid limit price is required for limit orders');
+            }
+
+            let currentPrice;
+            try {
+                currentPrice = await this.getCurrentPrice(order.symbol);
+            } catch (err) {
+                throw new Error(`Unable to validate limit price against market price: ${err.message}`);
+            }
+
+            if (!currentPrice || currentPrice <= 0) {
+                throw new Error('Unable to validate limit price: current market price unavailable');
+            }
+
+            const maxDeviation = 0.2; // 20% max deviation from current market price
+            const deviation = Math.abs(order.limitPrice - currentPrice) / currentPrice;
+            if (deviation > maxDeviation) {
+                throw new Error(`Limit price deviates too far from current market price (${currentPrice})`);
+            }
+        }
+
         return new Promise((resolve, reject) => {
             const orderId = this.nextOrderId++;
 

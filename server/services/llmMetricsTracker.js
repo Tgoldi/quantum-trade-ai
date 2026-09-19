@@ -5,6 +5,8 @@
 
 const { cache } = require('../database/db');
 
+const KNOWN_MODELS = ['llama3.1:8b', 'mistral:7b', 'phi3:mini', 'codellama:13b'];
+
 class LLMMetricsTracker {
     constructor() {
         this.metricsPrefix = 'llm_metrics';
@@ -14,6 +16,11 @@ class LLMMetricsTracker {
      * Track a new AI request
      */
     async trackRequest(model, latency, success, error = null) {
+        if (!KNOWN_MODELS.includes(model)) {
+            console.error(`Error tracking LLM metrics: unknown model "${model}"`);
+            return;
+        }
+
         const timestamp = Date.now();
         const hour = new Date().getHours();
         
@@ -122,7 +129,7 @@ class LLMMetricsTracker {
      * Get per-model statistics
      */
     async getModelStats() {
-        const models = ['llama3.1:8b', 'mistral:7b', 'phi3:mini', 'codellama:13b'];
+        const models = KNOWN_MODELS;
         const stats = [];
         
         for (const model of models) {

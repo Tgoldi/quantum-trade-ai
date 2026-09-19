@@ -162,13 +162,10 @@ export default function CryptoTrading() {
 
   const loadCryptoData = async () => {
     try {
-      const [cryptoData, positionData] = await Promise.all([
-        CryptoAsset.list("-market_cap", 20),
-        CryptoPosition.list("-market_value_usd", 10)
-      ]);
-      
-      setCryptos(cryptoData);
-      setPositions(positionData);
+      // No crypto data service is currently configured; default to empty state
+      // until a real crypto data API integration is added.
+      setCryptos([]);
+      setPositions([]);
     } catch (error) {
       console.error("Error loading crypto data:", error);
       setCryptos([]);

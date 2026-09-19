@@ -13,15 +13,18 @@ class BacktestingService {
     /**
      * Run backtest with historical data
      */
-    async runBacktest(config) {
+    async runBacktest(config, userId) {
         const {
             strategyConfig,
             symbols,
             startDate,
             endDate,
-            initialCapital = 100000,
-            userId
+            initialCapital = 100000
         } = config;
+
+        if (!userId || typeof userId !== 'string') {
+            throw new Error('A valid authenticated userId is required to run a backtest');
+        }
 
         console.log(`📊 Running backtest: ${strategyConfig.name} from ${startDate} to ${endDate}`);
 
@@ -526,6 +529,10 @@ class BacktestingService {
     async saveBacktestResults(data) {
         const { userId, name, config, startDate, endDate, initialCapital, results, metrics } = data;
 
+        if (!userId || typeof userId !== 'string') {
+            throw new Error('A valid authenticated userId is required to save backtest results');
+        }
+
         const backtestId = uuidv4();
 
         await query(
@@ -559,11 +566,15 @@ class BacktestingService {
     /**
      * Monte Carlo simulation
      */
-    async runMonteCarloSimulation(backtestId, numSimulations = 1000) {
-        // Get backtest results
+    async runMonteCarloSimulation(backtestId, numSimulations = 1000, userId) {
+        if (!userId || typeof userId !== 'string') {
+            throw new Error('A valid authenticated userId is required to run this simulation');
+        }
+
+        // Get backtest results, scoped to the authenticated owner
         const [backtest] = await query(
-            'SELECT * FROM backtest_results WHERE id = $1',
-            [backtestId]
+            'SELECT * FROM backtest_results WHERE id = $1 AND user_id = $2',
+            [backtestId, userId]
         );
 
         if (!backtest) {

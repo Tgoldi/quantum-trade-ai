@@ -93,7 +93,7 @@ Once you fund the account, test it:
 ```bash
 TOKEN=$(curl -s -X POST http://localhost:3001/api/auth/login \
   -H "Content-Type: application/json" \
-  -d '{"emailOrUsername":"tomerg.work@gmail.com","password":"Tomergold1!"}' | jq -r '.tokens.accessToken')
+  -d "{\"emailOrUsername\":\"$TEST_USER_EMAIL\",\"password\":\"$TEST_USER_PASSWORD\"}" | jq -r '.tokens.accessToken')
 
 # Check IB account
 curl -s http://localhost:3001/api/ib/account \

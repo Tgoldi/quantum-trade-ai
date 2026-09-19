@@ -42,6 +42,10 @@ export default function Dashboard() {
 
   const handleExecuteDecision = async (decision) => {
     try {
+      // Validate ownership of the AI decision before executing
+      if (!user || !decision || decision.user_id !== user.id) {
+        throw new Error('You do not have permission to execute this decision');
+      }
       // Validate AI decision parameters
       if (!decision.symbol || typeof decision.symbol !== 'string' || !/^[A-Z]{1,5}$/.test(decision.symbol)) {
         throw new Error('Invalid symbol');
@@ -112,8 +116,8 @@ export default function Dashboard() {
         const marketDataArray = Array.isArray(marketData) ? marketData : [];
         
         if (marketDataArray.length > 0) {
-          const totalValue = marketDataArray.reduce((sum, stock) => sum + (stock.price * 10), 0);
-          const totalChange = marketDataArray.reduce((sum, stock) => sum + (stock.change * 10), 0);
+          const totalValue = marketDataArray.reduce((sum, stock) => sum + ((typeof stock?.price === 'number' ? stock.price : 0) * 10), 0);
+          const totalChange = marketDataArray.reduce((sum, stock) => sum + ((typeof stock?.change === 'number' ? stock.change : 0) * 10), 0);
           const changePercent = totalChange / (totalValue - totalChange) * 100;
           
           portfolioData = {
@@ -124,8 +128,8 @@ export default function Dashboard() {
             total_return: totalChange * 2.5,
             total_return_percent: changePercent * 2.5,
             positions_count: portfolioSymbols.length,
-            winning_positions: marketDataArray.filter(s => s.change > 0).length,
-            losing_positions: marketDataArray.filter(s => s.change < 0).length,
+            winning_positions: marketDataArray.filter(s => (typeof s?.change === 'number' ? s.change : 0) > 0).length,
+            losing_positions: marketDataArray.filter(s => (typeof s?.change === 'number' ? s.change : 0) < 0).length,
             source: 'calculated'
           };
         } else {

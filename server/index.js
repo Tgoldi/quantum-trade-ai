@@ -3,6 +3,9 @@
 
 const express = require('express');
 const cors = require('cors');
+const helmet = require('helmet');
+const rateLimit = require('express-rate-limit');
+const jwt = require('jsonwebtoken');
 const WebSocket = require('ws');
 const Alpaca = require('@alpacahq/alpaca-trade-api');
 const OptimizedAITradingService = require('./optimizedAIService');
@@ -12,12 +15,36 @@ require('dotenv').config();
 const app = express();
 const PORT = process.env.PORT || 3001;
 
+app.set('trust proxy', 1);
+
 // Middleware
+app.use(helmet());
 app.use(cors({
     origin: process.env.FRONTEND_URL || 'http://localhost:5173',
     credentials: true
 }));
-app.use(express.json());
+app.use(express.json({ limit: '1mb' }));
+
+const apiLimiter = rateLimit({ windowMs: 15 * 60 * 1000, max: 100 });
+app.use('/api/', apiLimiter);
+
+// Middleware to require a valid JWT
+function requireAuth(req, res, next) {
+    const authHeader = req.headers['authorization'] || '';
+    const token = authHeader.startsWith('Bearer ') ? authHeader.slice(7) : null;
+
+    if (!token) {
+        return res.status(401).json({ error: 'Missing or invalid authentication token' });
+    }
+
+    try {
+        const decoded = jwt.verify(token, process.env.JWT_SECRET);
+        req.user = decoded;
+        next();
+    } catch (err) {
+        return res.status(401).json({ error: 'Invalid or expired token' });
+    }
+}
 
 // Initialize Alpaca SDK
 let alpaca = null;
@@ -118,7 +145,11 @@ if (dataStream) {
             source: 'alpaca'
         };
 
-        realtimeData.set(symbol, { ...realtimeData.get(symbol), ...data });
+        if (['__proto__', 'constructor', 'prototype'].includes(symbol)) {
+            return;
+        }
+        const existing = realtimeData.get(symbol) || Object.create(null);
+        realtimeData.set(symbol, Object.assign(Object.create(null), existing, data));
 
         // Broadcast to frontend clients
         broadcastToClients({
@@ -143,7 +174,11 @@ if (dataStream) {
             source: 'alpaca'
         };
 
-        realtimeData.set(symbol, { ...realtimeData.get(symbol), ...data });
+        if (['__proto__', 'constructor', 'prototype'].includes(symbol)) {
+            return;
+        }
+        const existing = realtimeData.get(symbol) || Object.create(null);
+        realtimeData.set(symbol, Object.assign(Object.create(null), existing, data));
 
         // Broadcast to frontend clients
         broadcastToClients({
@@ -175,7 +210,7 @@ app.get('/api/health', async (req, res) => {
 });
 
 // Get account information
-app.get('/api/account', async (req, res) => {
+app.get('/api/account', requireAuth, async (req, res) => {
     if (!alpaca) {
         return res.status(400).json({ error: 'Alpaca not configured' });
     }
@@ -190,7 +225,7 @@ app.get('/api/account', async (req, res) => {
 });
 
 // Get positions
-app.get('/api/positions', async (req, res) => {
+app.get('/api/positions', requireAuth, async (req, res) => {
     if (!alpaca) {
         return res.status(400).json({ error: 'Alpaca not configured' });
     }
@@ -205,7 +240,7 @@ app.get('/api/positions', async (req, res) => {
 });
 
 // Get portfolio summary
-app.get('/api/portfolio', async (req, res) => {
+app.get('/api/portfolio', requireAuth, async (req, res) => {
     if (!alpaca) {
         return res.status(400).json({ error: 'Alpaca not configured' });
     }
@@ -330,24 +365,42 @@ app.get('/api/market-movers', async (req, res) => {
 });
 
 // Place order
-app.post('/api/orders', async (req, res) => {
+app.post('/api/orders', requireAuth, async (req, res) => {
     if (!alpaca) {
         return res.status(400).json({ error: 'Alpaca not configured' });
     }
 
     const { symbol, qty, side, type = 'market', timeInForce = 'day', limitPrice } = req.body;
 
+    const qtyNum = Number(qty);
+    if (!Number.isFinite(qtyNum) || qtyNum <= 0 || qtyNum > 1000000) {
+        return res.status(400).json({ error: 'Invalid qty' });
+    }
+    if (!['buy', 'sell'].includes(side)) {
+        return res.status(400).json({ error: 'Invalid side' });
+    }
+    if (typeof symbol !== 'string' || !/^[A-Z]{1,5}$/.test(symbol)) {
+        return res.status(400).json({ error: 'Invalid symbol' });
+    }
+    let limitPriceNum;
+    if (type === 'limit') {
+        limitPriceNum = Number(limitPrice);
+        if (!Number.isFinite(limitPriceNum) || limitPriceNum <= 0) {
+            return res.status(400).json({ error: 'Invalid limitPrice' });
+        }
+    }
+
     try {
         const orderData = {
             symbol,
-            qty: qty.toString(),
+            qty: qtyNum.toString(),
             side,
             type,
             time_in_force: timeInForce
         };
 
-        if (type === 'limit' && limitPrice) {
-            orderData.limit_price = limitPrice;
+        if (type === 'limit' && limitPriceNum) {
+            orderData.limit_price = limitPriceNum;
         }
 
         const order = await alpaca.createOrder(orderData);
@@ -359,7 +412,7 @@ app.post('/api/orders', async (req, res) => {
 });
 
 // Get orders
-app.get('/api/orders', async (req, res) => {
+app.get('/api/orders', requireAuth, async (req, res) => {
     if (!alpaca) {
         return res.status(400).json({ error: 'Alpaca not configured' });
     }

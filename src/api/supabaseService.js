@@ -49,15 +49,18 @@ class SupabaseService {
 
             if (profileError) throw profileError
 
-            // Create default portfolio
+            // Create default portfolio with fixed, server-enforced starting values
+            // (balances/type must not be derived from client-supplied input)
+            const DEFAULT_PORTFOLIO_TYPE = 'paper'
+            const DEFAULT_STARTING_BALANCE = 100000
             const { error: portfolioError } = await this.supabase
                 .from('portfolios')
                 .insert({
                     user_id: data.user.id,
                     name: 'Paper Trading',
-                    type: 'paper',
-                    current_balance: 100000,
-                    initial_balance: 100000
+                    type: DEFAULT_PORTFOLIO_TYPE,
+                    current_balance: DEFAULT_STARTING_BALANCE,
+                    initial_balance: DEFAULT_STARTING_BALANCE
                 })
 
             if (portfolioError) throw portfolioError
