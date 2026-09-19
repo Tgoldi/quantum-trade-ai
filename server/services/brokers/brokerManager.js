@@ -28,16 +28,20 @@ class BrokerManager {
     /**
      * Get broker for a portfolio
      */
-    async getBrokerForPortfolio(portfolioId) {
+    async getBrokerForPortfolio(portfolioId, userId) {
+        if (!userId) {
+            throw new Error('User authentication required');
+        }
+
         // Check if broker already exists
         if (this.brokers.has(portfolioId)) {
             return this.brokers.get(portfolioId);
         }
 
-        // Get portfolio broker configuration
+        // Get portfolio broker configuration, scoped to the authenticated owner
         const [portfolio] = await query(
-            'SELECT broker, broker_account_id FROM portfolios WHERE id = $1',
-            [portfolioId]
+            'SELECT broker, broker_account_id FROM portfolios WHERE id = $1 AND user_id = $2',
+            [portfolioId, userId]
         );
 
         if (!portfolio) {
@@ -75,41 +79,41 @@ class BrokerManager {
     /**
      * Place order through appropriate broker
      */
-    async placeOrder(portfolioId, order) {
-        const broker = await this.getBrokerForPortfolio(portfolioId);
+    async placeOrder(portfolioId, order, userId) {
+        const broker = await this.getBrokerForPortfolio(portfolioId, userId);
         return await broker.placeOrder(order);
     }
 
     /**
      * Get positions for a portfolio
      */
-    async getPositions(portfolioId) {
-        const broker = await this.getBrokerForPortfolio(portfolioId);
+    async getPositions(portfolioId, userId) {
+        const broker = await this.getBrokerForPortfolio(portfolioId, userId);
         return await broker.getPositions();
     }
 
     /**
      * Get account info for a portfolio
      */
-    async getAccount(portfolioId) {
-        const broker = await this.getBrokerForPortfolio(portfolioId);
+    async getAccount(portfolioId, userId) {
+        const broker = await this.getBrokerForPortfolio(portfolioId, userId);
         return await broker.getAccount();
     }
 
     /**
      * Cancel order
      */
-    async cancelOrder(portfolioId, orderId) {
-        const broker = await this.getBrokerForPortfolio(portfolioId);
+    async cancelOrder(portfolioId, orderId, userId) {
+        const broker = await this.getBrokerForPortfolio(portfolioId, userId);
         return await broker.cancelOrder(orderId);
     }
 
     /**
      * Get current price
      */
-    async getCurrentPrice(symbol, portfolioId = null) {
+    async getCurrentPrice(symbol, portfolioId = null, userId = null) {
         const broker = portfolioId
-            ? await this.getBrokerForPortfolio(portfolioId)
+            ? await this.getBrokerForPortfolio(portfolioId, userId)
             : this.defaultBroker || await this.initializeDefaultBroker();
 
         return await broker.getCurrentPrice(symbol);
@@ -118,9 +122,9 @@ class BrokerManager {
     /**
      * Get historical data
      */
-    async getHistoricalData(symbol, timeframe, start, end, portfolioId = null) {
+    async getHistoricalData(symbol, timeframe, start, end, portfolioId = null, userId = null) {
         const broker = portfolioId
-            ? await this.getBrokerForPortfolio(portfolioId)
+            ? await this.getBrokerForPortfolio(portfolioId, userId)
             : this.defaultBroker || await this.initializeDefaultBroker();
 
         return await broker.getHistoricalData(symbol, timeframe, start, end);
@@ -129,9 +133,9 @@ class BrokerManager {
     /**
      * Subscribe to price updates
      */
-    async subscribeToPrices(symbols, callback, portfolioId = null) {
+    async subscribeToPrices(symbols, callback, portfolioId = null, userId = null) {
         const broker = portfolioId
-            ? await this.getBrokerForPortfolio(portfolioId)
+            ? await this.getBrokerForPortfolio(portfolioId, userId)
             : this.defaultBroker || await this.initializeDefaultBroker();
 
         return await broker.subscribeToPrices(symbols, callback);

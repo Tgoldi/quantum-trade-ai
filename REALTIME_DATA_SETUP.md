@@ -58,12 +58,19 @@ Your dashboard has been upgraded with real-time US stock market data! 🚀
    ```env
    # Alpaca Markets API Keys (Primary)
    REACT_APP_ALPACA_API_KEY=your_alpaca_api_key_here
-   REACT_APP_ALPACA_SECRET_KEY=your_alpaca_secret_key_here
    REACT_APP_ALPACA_PAPER_TRADING=true
 
    # Backup APIs (Optional)
    REACT_APP_FINNHUB_API_KEY=your_finnhub_api_key_here
    REACT_APP_ALPHA_VANTAGE_API_KEY=your_alpha_vantage_api_key_here
+
+   # Secret keys must NEVER use a public/browser-exposed prefix (e.g. REACT_APP_).
+   # Store the Alpaca secret key as a server-only environment variable, e.g. in
+   # a separate server `.env` file (never committed to version control):
+   #   ALPACA_SECRET_KEY=your_alpaca_secret_key_here
+   # and read it only from server-side code:
+   #   // server only — no public prefix:
+   #   const key = process.env.ALPACA_SECRET_KEY;
    ```
 
 3. Restart your development server:

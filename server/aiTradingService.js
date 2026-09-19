@@ -1,5 +1,41 @@
 const axios = require('axios');
 
+const MAX_RESPONSE_LENGTH = 4000;
+
+function sanitizeMarketData(marketData) {
+    if (!marketData || typeof marketData !== 'object') {
+        throw new Error('Invalid market data');
+    }
+    const symbol = String(marketData.symbol || '').toUpperCase();
+    if (!/^[A-Z]{1,5}$/.test(symbol)) {
+        throw new Error('Invalid symbol format');
+    }
+    const price = Number(marketData.price);
+    if (!Number.isFinite(price) || price < 0 || price > 1000000) {
+        throw new Error('Invalid price value');
+    }
+    const changePercent = Number(marketData.change_percent);
+    if (!Number.isFinite(changePercent) || changePercent < -100 || changePercent > 1000) {
+        throw new Error('Invalid change_percent value');
+    }
+    const volume = marketData.volume !== undefined ? Number(marketData.volume) : 0;
+    if (!Number.isFinite(volume) || volume < 0) {
+        throw new Error('Invalid volume value');
+    }
+    const marketCap = marketData.market_cap !== undefined ? Number(marketData.market_cap) : undefined;
+    if (marketCap !== undefined && (!Number.isFinite(marketCap) || marketCap < 0)) {
+        throw new Error('Invalid market_cap value');
+    }
+    return {
+        ...marketData,
+        symbol,
+        price,
+        change_percent: changePercent,
+        volume,
+        market_cap: marketCap
+    };
+}
+
 class AITradingService {
     constructor() {
         this.ollamaUrl = 'http://localhost:11434';
@@ -25,9 +61,10 @@ class AITradingService {
 
     async queryLLM(model, prompt, temperature = 0.7) {
         try {
+            const boundedPrompt = `${prompt}\n\nRespond in exactly ${MAX_RESPONSE_LENGTH} tokens or less.`;
             const response = await axios.post(`${this.ollamaUrl}/api/generate`, {
                 model: model,
-                prompt: prompt,
+                prompt: boundedPrompt,
                 stream: false,
                 options: {
                     temperature: temperature,
@@ -38,7 +75,11 @@ class AITradingService {
                 timeout: 15000 // 15 second timeout
             });
 
-            return response.data.response;
+            let result = response.data.response;
+            if (typeof result === 'string' && result.length > MAX_RESPONSE_LENGTH) {
+                result = result.substring(0, MAX_RESPONSE_LENGTH);
+            }
+            return result;
         } catch (error) {
             console.error(`❌ Error querying ${model}:`, error.message);
             return null;
@@ -67,7 +108,8 @@ class AITradingService {
         }
     }
 
-    async getTechnicalAnalysis(marketData) {
+    async getTechnicalAnalysis(marketDataRaw) {
+        const marketData = sanitizeMarketData(marketDataRaw);
         const prompt = `Analyze ${marketData.symbol} stock:
 Price: $${marketData.price}, Change: ${marketData.change_percent}%
 
@@ -78,7 +120,8 @@ Respond in JSON format:
         return this.parseTechnicalResponse(response);
     }
 
-    async getRiskAssessment(marketData, portfolioData) {
+    async getRiskAssessment(marketDataRaw, portfolioData) {
+        const marketData = sanitizeMarketData(marketDataRaw);
         const prompt = `
 As a risk management expert, assess the risk of this trading opportunity:
 
@@ -111,8 +154,9 @@ Format as JSON:
         return this.parseRiskResponse(response);
     }
 
-    async getMarketSentiment(marketData, newsData = []) {
-        const newsText = Array.isArray(newsData) ? newsData.slice(0, 3).map(n => n.headline).join('. ') : '';
+    async getMarketSentiment(marketDataRaw, newsData = []) {
+        const marketData = sanitizeMarketData(marketDataRaw);
+        const newsText = Array.isArray(newsData) ? newsData.slice(0, 3).map(n => String(n.headline || '').replace(/[`$]/g, '')).join('. ') : '';
 
         const prompt = `
 As a market sentiment analyst, evaluate the current sentiment for this stock:
@@ -144,7 +188,8 @@ Format as JSON:
         return this.parseSentimentResponse(response);
     }
 
-    async getTradingStrategy(marketData, technicalAnalysis, riskAssessment) {
+    async getTradingStrategy(marketDataRaw, technicalAnalysis, riskAssessment) {
+        const marketData = sanitizeMarketData(marketDataRaw);
         const prompt = `
 As a trading strategy expert, develop a trading plan based on this analysis:
 
@@ -216,6 +261,9 @@ Format as JSON:
     parseTechnicalResponse(response) {
         try {
             const parsed = JSON.parse(response);
+            if (parsed.confidence !== undefined && (typeof parsed.confidence !== 'number' || parsed.confidence < 0 || parsed.confidence > 1)) {
+                throw new Error('Invalid confidence');
+            }
             return {
                 trend: parsed.trend || 'neutral',
                 confidence: Math.max(0, Math.min(1, parsed.confidence || 0.5)),
@@ -239,6 +287,9 @@ Format as JSON:
     parseRiskResponse(response) {
         try {
             const parsed = JSON.parse(response);
+            if (parsed.confidence !== undefined && (typeof parsed.confidence !== 'number' || parsed.confidence < 0 || parsed.confidence > 1)) {
+                throw new Error('Invalid confidence');
+            }
             return {
                 risk_level: parsed.risk_level || 'medium',
                 confidence: Math.max(0, Math.min(1, parsed.confidence || 0.5)),
@@ -262,6 +313,9 @@ Format as JSON:
     parseSentimentResponse(response) {
         try {
             const parsed = JSON.parse(response);
+            if (parsed.confidence !== undefined && (typeof parsed.confidence !== 'number' || parsed.confidence < 0 || parsed.confidence > 1)) {
+                throw new Error('Invalid confidence');
+            }
             return {
                 sentiment: parsed.sentiment || 'neutral',
                 confidence: Math.max(0, Math.min(1, parsed.confidence || 0.5)),
@@ -285,6 +339,9 @@ Format as JSON:
     parseStrategyResponse(response) {
         try {
             const parsed = JSON.parse(response);
+            if (parsed.confidence !== undefined && (typeof parsed.confidence !== 'number' || parsed.confidence < 0 || parsed.confidence > 1)) {
+                throw new Error('Invalid confidence');
+            }
             return {
                 action: parsed.action || 'hold',
                 confidence: Math.max(0, Math.min(1, parsed.confidence || 0.5)),

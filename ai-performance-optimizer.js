@@ -7,8 +7,35 @@
 
 import axios from 'axios';
 
-const OLLAMA_URL = 'http://localhost:11434';
+// Ollama must be bound to localhost only (127.0.0.1:11434) with no external network exposure.
+const OLLAMA_URL = 'http://127.0.0.1:11434';
 const BACKEND_URL = 'http://localhost:3001';
+
+// Simple concurrency-limited queue with basic circuit breaker to avoid hammering Ollama
+let consecutiveFailures = 0;
+const MAX_CONSECUTIVE_FAILURES = 3;
+let circuitOpenUntil = 0;
+
+async function withRateLimit(fn) {
+    if (Date.now() < circuitOpenUntil) {
+        throw new Error('Circuit breaker open: Ollama appears unresponsive, pausing requests');
+    }
+    try {
+        const result = await fn();
+        consecutiveFailures = 0;
+        return result;
+    } catch (error) {
+        consecutiveFailures++;
+        if (consecutiveFailures >= MAX_CONSECUTIVE_FAILURES) {
+            circuitOpenUntil = Date.now() + 30000; // open circuit for 30s
+            consecutiveFailures = 0;
+        }
+        throw error;
+    } finally {
+        // Basic delay to throttle request rate between calls
+        await new Promise(resolve => setTimeout(resolve, 500));
+    }
+}
 
 const models = [
     { name: 'phi3:mini', purpose: 'Fast sentiment analysis', priority: 1 },
@@ -19,7 +46,7 @@ const models = [
 
 async function checkOllamaStatus() {
     try {
-        const response = await axios.get(`${OLLAMA_URL}/api/ps`);
+        const response = await withRateLimit(() => axios.get(`${OLLAMA_URL}/api/ps`));
         return response.data.models || [];
     } catch (error) {
         console.error('❌ Ollama is not running');
@@ -34,7 +61,7 @@ async function preloadModel(modelName, keepAlive = '60m') {
         const startTime = Date.now();
 
         // Send a simple prompt to load the model
-        const response = await axios.post(`${OLLAMA_URL}/api/generate`, {
+        const response = await withRateLimit(() => axios.post(`${OLLAMA_URL}/api/generate`, {
             model: modelName,
             prompt: 'Ready',
             stream: false,
@@ -43,7 +70,7 @@ async function preloadModel(modelName, keepAlive = '60m') {
                 temperature: 0.1,
                 max_tokens: 5
             }
-        }, { timeout: 120000 }); // 2 minute timeout for loading
+        }, { timeout: 120000 })); // 2 minute timeout for loading
 
         const loadTime = Date.now() - startTime;
         console.log(`✅ ${modelName} loaded in ${loadTime}ms`);
@@ -60,7 +87,7 @@ async function testModelResponse(modelName) {
     try {
         const startTime = Date.now();
 
-        const response = await axios.post(`${OLLAMA_URL}/api/generate`, {
+        const response = await withRateLimit(() => axios.post(`${OLLAMA_URL}/api/generate`, {
             model: modelName,
             prompt: 'AAPL stock analysis: BUY/SELL/HOLD?',
             stream: false,
@@ -68,7 +95,7 @@ async function testModelResponse(modelName) {
                 temperature: 0.1,
                 max_tokens: 10
             }
-        }, { timeout: 30000 });
+        }, { timeout: 30000 }));
 
         const responseTime = Date.now() - startTime;
         const aiResponse = response.data.response || 'No response';
@@ -86,7 +113,7 @@ async function optimizeOllamaSettings() {
 
     // Check current settings
     try {
-        const response = await axios.get(`${OLLAMA_URL}/api/version`);
+        const response = await withRateLimit(() => axios.get(`${OLLAMA_URL}/api/version`));
         console.log(`✅ Ollama version: ${response.data.version}`);
     } catch (error) {
         console.log('❌ Cannot connect to Ollama');

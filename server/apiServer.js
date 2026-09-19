@@ -110,7 +110,16 @@ const authenticate = async (req, res, next) => {
 // AUTHENTICATION ROUTES
 // ============================================
 
-app.post('/api/auth/register', async (req, res) => {
+const authLimiter = rateLimit({
+    windowMs: 15 * 60 * 1000,
+    max: 5,
+    keyGenerator: (req) => `${req.ip}:${req.body?.email ?? ''}`,
+    standardHeaders: true,
+    legacyHeaders: false,
+    message: { error: 'Too many attempts. Please try again later.' }
+});
+
+app.post('/api/auth/register', authLimiter, async (req, res) => {
     try {
         const result = await authService.register(req.body);
         res.status(201).json(result);
@@ -119,7 +128,7 @@ app.post('/api/auth/register', async (req, res) => {
     }
 });
 
-app.post('/api/auth/login', async (req, res) => {
+app.post('/api/auth/login', authLimiter, async (req, res) => {
     try {
         const result = await authService.login(req.body);
         res.json(result);
@@ -174,6 +183,13 @@ app.get('/api/portfolios', authenticate, async (req, res) => {
 
 app.get('/api/portfolios/:id', authenticate, async (req, res) => {
     try {
+        const [owned] = await query(
+            'SELECT id FROM portfolios WHERE id = $1 AND user_id = $2',
+            [req.params.id, req.user.userId]
+        );
+        if (!owned) {
+            return res.status(404).json({ error: 'Portfolio not found' });
+        }
         const summary = await paperTradingService.getPortfolioSummary(req.params.id);
         if (!summary) {
             return res.status(404).json({ error: 'Portfolio not found' });
@@ -277,6 +293,13 @@ app.get('/api/portfolio/live', authenticate, async (req, res) => {
 
 app.get('/api/portfolios/:id/positions', authenticate, async (req, res) => {
     try {
+        const [owned] = await query(
+            'SELECT id FROM portfolios WHERE id = $1 AND user_id = $2',
+            [req.params.id, req.user.userId]
+        );
+        if (!owned) {
+            return res.status(404).json({ error: 'Portfolio not found' });
+        }
         const positions = await paperTradingService.getPositions(req.params.id);
         res.json(positions);
     } catch (error) {
@@ -286,6 +309,13 @@ app.get('/api/portfolios/:id/positions', authenticate, async (req, res) => {
 
 app.get('/api/portfolios/:id/performance', authenticate, async (req, res) => {
     try {
+        const [owned] = await query(
+            'SELECT id FROM portfolios WHERE id = $1 AND user_id = $2',
+            [req.params.id, req.user.userId]
+        );
+        if (!owned) {
+            return res.status(404).json({ error: 'Portfolio not found' });
+        }
         const performance = await paperTradingService.calculatePerformance(req.params.id);
         res.json(performance);
     } catch (error) {
@@ -295,6 +325,13 @@ app.get('/api/portfolios/:id/performance', authenticate, async (req, res) => {
 
 app.get('/api/portfolios/:id/trades', authenticate, async (req, res) => {
     try {
+        const [owned] = await query(
+            'SELECT id FROM portfolios WHERE id = $1 AND user_id = $2',
+            [req.params.id, req.user.userId]
+        );
+        if (!owned) {
+            return res.status(404).json({ error: 'Portfolio not found' });
+        }
         const limit = parseInt(req.query.limit) || 100;
         const trades = await paperTradingService.getTradeHistory(req.params.id, limit);
         res.json(trades);
@@ -310,6 +347,15 @@ app.get('/api/portfolios/:id/trades', authenticate, async (req, res) => {
 app.post('/api/trade', authenticate, async (req, res) => {
     try {
         const { portfolioId, symbol, side, quantity, orderType, limitPrice, strategy } = req.body;
+
+        // Verify the portfolio belongs to the authenticated user
+        const [ownedPortfolio] = await query(
+            'SELECT id FROM portfolios WHERE id = $1 AND user_id = $2',
+            [portfolioId, req.user.userId]
+        );
+        if (!ownedPortfolio) {
+            return res.status(404).json({ error: 'Portfolio not found' });
+        }
 
         // Validate trade with risk management
         const validation = await riskManagementService.validateTrade(portfolioId, {
@@ -488,14 +534,23 @@ app.post('/api/ai/decision/execute', authenticate, async (req, res) => {
     try {
         const { decisionId, portfolioId } = req.body;
 
-        // Get decision
+        // Get decision and verify ownership
         const [decision] = await query(
-            'SELECT * FROM ai_decisions WHERE id = $1',
-            [decisionId]
+            'SELECT * FROM ai_decisions WHERE id = $1 AND user_id = $2',
+            [decisionId, req.user.userId]
         );
 
         if (!decision) {
             return res.status(404).json({ error: 'Decision not found' });
+        }
+
+        // Verify the target portfolio belongs to the authenticated user
+        const [ownedPortfolio] = await query(
+            'SELECT id FROM portfolios WHERE id = $1 AND user_id = $2',
+            [portfolioId, req.user.userId]
+        );
+        if (!ownedPortfolio) {
+            return res.status(404).json({ error: 'Portfolio not found' });
         }
 
         // Execute trade based on decision
@@ -801,6 +856,13 @@ app.get('/api/market/history/:symbol', async (req, res) => {
 
 app.get('/api/risk/var/:portfolioId', authenticate, async (req, res) => {
     try {
+        const [owned] = await query(
+            'SELECT id FROM portfolios WHERE id = $1 AND user_id = $2',
+            [req.params.portfolioId, req.user.userId]
+        );
+        if (!owned) {
+            return res.status(404).json({ error: 'Portfolio not found' });
+        }
         const { confidenceLevel = 0.95, timeHorizon = 1 } = req.query;
         const var_ = await riskManagementService.calculateVaR(
             req.params.portfolioId,
@@ -815,6 +877,13 @@ app.get('/api/risk/var/:portfolioId', authenticate, async (req, res) => {
 
 app.get('/api/risk/metrics/:portfolioId', authenticate, async (req, res) => {
     try {
+        const [owned] = await query(
+            'SELECT id FROM portfolios WHERE id = $1 AND user_id = $2',
+            [req.params.portfolioId, req.user.userId]
+        );
+        if (!owned) {
+            return res.status(404).json({ error: 'Portfolio not found' });
+        }
         const metrics = await riskManagementService.calculatePortfolioMetrics(req.params.portfolioId);
         res.json(metrics);
     } catch (error) {
@@ -824,7 +893,24 @@ app.get('/api/risk/metrics/:portfolioId', authenticate, async (req, res) => {
 
 app.post('/api/risk/limits/:portfolioId', authenticate, async (req, res) => {
     try {
-        riskManagementService.updateRiskLimits(req.body);
+        const [owned] = await query(
+            'SELECT id FROM portfolios WHERE id = $1 AND user_id = $2',
+            [req.params.portfolioId, req.user.userId]
+        );
+        if (!owned) {
+            return res.status(404).json({ error: 'Portfolio not found' });
+        }
+
+        const dangerousKeys = ['__proto__', 'constructor', 'prototype'];
+        const sanitizedLimits = {};
+        for (const [key, value] of Object.entries(req.body || {})) {
+            if (dangerousKeys.includes(key)) {
+                return res.status(400).json({ error: 'Invalid key in request body' });
+            }
+            sanitizedLimits[key] = value;
+        }
+
+        riskManagementService.updateRiskLimits(sanitizedLimits);
         res.json({ success: true });
     } catch (error) {
         res.status(500).json({ error: error.message });

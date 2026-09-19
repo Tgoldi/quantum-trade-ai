@@ -2,7 +2,12 @@
 const authService = require('../auth/authService');
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
+const crypto = require('crypto');
 const { query, transaction, cache } = require('../database/db');
+
+const TEST_PASSWORD = crypto.randomBytes(12).toString('hex');
+const TEST_PASSWORD_NEW = crypto.randomBytes(12).toString('hex');
+const TEST_PASSWORD_WRONG = crypto.randomBytes(12).toString('hex');
 
 jest.mock('../database/db');
 jest.mock('bcryptjs');
@@ -32,7 +37,7 @@ describe('Authentication Service', () => {
             const userData = {
                 email: 'test@example.com',
                 username: 'testuser',
-                password: 'password123',
+                password: TEST_PASSWORD,
                 firstName: 'Test',
                 lastName: 'User'
             };
@@ -51,7 +56,7 @@ describe('Authentication Service', () => {
             const userData = {
                 email: 'existing@example.com',
                 username: 'testuser',
-                password: 'password123'
+                password: TEST_PASSWORD
             };
 
             await expect(authService.register(userData)).rejects.toThrow(
@@ -96,7 +101,7 @@ describe('Authentication Service', () => {
 
             const result = await authService.login({
                 emailOrUsername: 'test@example.com',
-                password: 'password123'
+                password: TEST_PASSWORD
             });
 
             expect(result).toHaveProperty('user');
@@ -110,7 +115,7 @@ describe('Authentication Service', () => {
 
             await expect(authService.login({
                 emailOrUsername: 'wrong@example.com',
-                password: 'password123'
+                password: TEST_PASSWORD
             })).rejects.toThrow('Invalid credentials');
         });
 
@@ -127,7 +132,7 @@ describe('Authentication Service', () => {
 
             await expect(authService.login({
                 emailOrUsername: 'test@example.com',
-                password: 'wrongpassword'
+                password: TEST_PASSWORD_WRONG
             })).rejects.toThrow('Invalid credentials');
         });
 
@@ -143,7 +148,7 @@ describe('Authentication Service', () => {
 
             await expect(authService.login({
                 emailOrUsername: 'test@example.com',
-                password: 'password123'
+                password: TEST_PASSWORD
             })).rejects.toThrow('Account is disabled');
         });
     });
@@ -207,7 +212,7 @@ describe('Authentication Service', () => {
             const result = await authService.changePassword(
                 'user-123',
                 'oldpassword',
-                'newpassword123'
+                TEST_PASSWORD_NEW
             );
 
             expect(result.success).toBe(true);
@@ -224,7 +229,7 @@ describe('Authentication Service', () => {
             await expect(authService.changePassword(
                 'user-123',
                 'wrongpassword',
-                'newpassword123'
+                TEST_PASSWORD_NEW
             )).rejects.toThrow('Current password is incorrect');
         });
     });

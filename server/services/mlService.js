@@ -16,6 +16,9 @@ class MLService {
      * Get AI trading decision for a symbol
      */
     async getAIDecision(symbol, portfolioContext = null) {
+        if (typeof symbol !== 'string' || !/^[A-Za-z0-9.\-]{1,10}$/.test(symbol)) {
+            throw new Error('Invalid symbol format');
+        }
         const cacheKey = `ai:decision:${symbol}`;
 
         // Check cache (5 minute TTL)

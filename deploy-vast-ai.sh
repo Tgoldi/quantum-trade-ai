@@ -110,9 +110,14 @@ echo -e "\n${BLUE}⚙️  Step 4: Setting up environment...${NC}"
 # Check for .env.local
 if [ ! -f ".env.local" ]; then
     echo -e "${YELLOW}Creating .env.local file...${NC}"
-    cat > .env.local << 'EOF'
-VITE_SUPABASE_URL=https://ngwbwanpamfqoaitofih.supabase.co
-VITE_SUPABASE_ANON_KEY=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im5nd2J3YW5wYW1mcW9haXRvZmloIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjE1MDMzNDgsImV4cCI6MjA3NzA3OTM0OH0.6kifg9e7LDp2uacxSCsDKSEdFcdpMPzFen1oMgS3iuI
+    if [ -z "$VITE_SUPABASE_URL" ] || [ -z "$VITE_SUPABASE_ANON_KEY" ]; then
+        echo -e "${RED}❌ VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY must be set as environment variables before running this script.${NC}"
+        echo -e "${YELLOW}   Set them via your secrets manager (e.g. GitHub Secrets) and re-run.${NC}"
+        exit 1
+    fi
+    cat > .env.local << EOF
+VITE_SUPABASE_URL=$VITE_SUPABASE_URL
+VITE_SUPABASE_ANON_KEY=$VITE_SUPABASE_ANON_KEY
 EOF
     echo -e "${GREEN}✅ Created .env.local${NC}"
 else
@@ -122,14 +127,23 @@ fi
 # Check for server/.env
 if [ ! -f "server/.env" ]; then
     echo -e "${YELLOW}Creating server/.env file...${NC}"
-    JWT_SECRET=$(openssl rand -base64 32 2>/dev/null || echo "change-this-secret-key-in-production")
+    JWT_SECRET=$(openssl rand -hex 32)
+    if [ -z "$JWT_SECRET" ] || [ ${#JWT_SECRET} -lt 64 ]; then
+        echo -e "${RED}❌ Failed to generate a sufficiently strong JWT_SECRET. Aborting.${NC}"
+        exit 1
+    fi
+    DB_PASSWORD=$(openssl rand -hex 16)
+    if [ -z "$DB_PASSWORD" ] || [ ${#DB_PASSWORD} -lt 32 ]; then
+        echo -e "${RED}❌ Failed to generate a sufficiently strong DB_PASSWORD. Aborting.${NC}"
+        exit 1
+    fi
     cat > server/.env << EOF
 # Database Configuration
 DB_HOST=postgres
 DB_PORT=5432
 DB_NAME=quantumtrade
 DB_USER=postgres
-DB_PASSWORD=postgres_secure_password_change_this
+DB_PASSWORD=$DB_PASSWORD
 
 # Redis Configuration
 REDIS_HOST=redis
