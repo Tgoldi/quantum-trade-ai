@@ -408,3 +408,51 @@ ON CONFLICT DO NOTHING;
 
 COMMIT;
 
+
+-- Row Level Security for users (added by ShipSafe)
+ALTER TABLE users ENABLE ROW LEVEL SECURITY;
+-- TODO(shipsafe): no owner column (user_id/owner_id/created_by, or id referencing auth.users) was found on users. Once this runs, Row Level Security is ON with NO POLICY, so PostgREST returns zero rows to anon/authenticated until a policy is added here.
+
+-- Row Level Security for portfolios (added by ShipSafe)
+ALTER TABLE portfolios ENABLE ROW LEVEL SECURITY;
+-- TODO(shipsafe): no owner column (user_id/owner_id/created_by, or id referencing auth.users) was found on portfolios. Once this runs, Row Level Security is ON with NO POLICY, so PostgREST returns zero rows to anon/authenticated until a policy is added here.
+
+-- Row Level Security for positions (added by ShipSafe)
+ALTER TABLE positions ENABLE ROW LEVEL SECURITY;
+-- TODO(shipsafe): no owner column (user_id/owner_id/created_by, or id referencing auth.users) was found on positions. Once this runs, Row Level Security is ON with NO POLICY, so PostgREST returns zero rows to anon/authenticated until a policy is added here.
+
+-- Row Level Security for trades (added by ShipSafe)
+ALTER TABLE trades ENABLE ROW LEVEL SECURITY;
+-- TODO(shipsafe): no owner column (user_id/owner_id/created_by, or id referencing auth.users) was found on trades. Once this runs, Row Level Security is ON with NO POLICY, so PostgREST returns zero rows to anon/authenticated until a policy is added here.
+
+-- Row Level Security for ai_decisions (added by ShipSafe)
+ALTER TABLE ai_decisions ENABLE ROW LEVEL SECURITY;
+-- TODO(shipsafe): no owner column (user_id/owner_id/created_by, or id referencing auth.users) was found on ai_decisions. Once this runs, Row Level Security is ON with NO POLICY, so PostgREST returns zero rows to anon/authenticated until a policy is added here.
+
+-- Row Level Security for market_data (added by ShipSafe)
+ALTER TABLE market_data ENABLE ROW LEVEL SECURITY;
+-- TODO(shipsafe): no owner column (user_id/owner_id/created_by, or id referencing auth.users) was found on market_data. Once this runs, Row Level Security is ON with NO POLICY, so PostgREST returns zero rows to anon/authenticated until a policy is added here.
+
+-- Row Level Security for alerts (added by ShipSafe)
+ALTER TABLE alerts ENABLE ROW LEVEL SECURITY;
+-- TODO(shipsafe): no owner column (user_id/owner_id/created_by, or id referencing auth.users) was found on alerts. Once this runs, Row Level Security is ON with NO POLICY, so PostgREST returns zero rows to anon/authenticated until a policy is added here.
+
+-- Row Level Security for backtest_results (added by ShipSafe)
+ALTER TABLE backtest_results ENABLE ROW LEVEL SECURITY;
+-- TODO(shipsafe): no owner column (user_id/owner_id/created_by, or id referencing auth.users) was found on backtest_results. Once this runs, Row Level Security is ON with NO POLICY, so PostgREST returns zero rows to anon/authenticated until a policy is added here.
+
+-- Row Level Security for sentiment_data (added by ShipSafe)
+ALTER TABLE sentiment_data ENABLE ROW LEVEL SECURITY;
+-- TODO(shipsafe): no owner column (user_id/owner_id/created_by, or id referencing auth.users) was found on sentiment_data. Once this runs, Row Level Security is ON with NO POLICY, so PostgREST returns zero rows to anon/authenticated until a policy is added here.
+
+-- Row Level Security for risk_metrics (added by ShipSafe)
+ALTER TABLE risk_metrics ENABLE ROW LEVEL SECURITY;
+-- TODO(shipsafe): no owner column (user_id/owner_id/created_by, or id referencing auth.users) was found on risk_metrics. Once this runs, Row Level Security is ON with NO POLICY, so PostgREST returns zero rows to anon/authenticated until a policy is added here.
+
+-- Row Level Security for performance_metrics (added by ShipSafe)
+ALTER TABLE performance_metrics ENABLE ROW LEVEL SECURITY;
+-- TODO(shipsafe): no owner column (user_id/owner_id/created_by, or id referencing auth.users) was found on performance_metrics. Once this runs, Row Level Security is ON with NO POLICY, so PostgREST returns zero rows to anon/authenticated until a policy is added here.
+
+-- Row Level Security for system_logs (added by ShipSafe)
+ALTER TABLE system_logs ENABLE ROW LEVEL SECURITY;
+-- TODO(shipsafe): no owner column (user_id/owner_id/created_by, or id referencing auth.users) was found on system_logs. Once this runs, Row Level Security is ON with NO POLICY, so PostgREST returns zero rows to anon/authenticated until a policy is added here.
