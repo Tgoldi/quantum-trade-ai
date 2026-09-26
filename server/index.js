@@ -3,6 +3,8 @@
 
 const express = require('express');
 const cors = require('cors');
+const helmet = require('helmet');
+const rateLimit = require('express-rate-limit');
 const WebSocket = require('ws');
 const Alpaca = require('@alpacahq/alpaca-trade-api');
 const OptimizedAITradingService = require('./optimizedAIService');
@@ -12,12 +14,24 @@ require('dotenv').config();
 const app = express();
 const PORT = process.env.PORT || 3001;
 
+app.set('trust proxy', 1);
+
 // Middleware
+app.use(helmet());
 app.use(cors({
     origin: process.env.FRONTEND_URL || 'http://localhost:5173',
     credentials: true
 }));
 app.use(express.json());
+
+const apiLimiter = rateLimit({
+    windowMs: 15 * 60 * 1000,
+    max: 100,
+    standardHeaders: true,
+    legacyHeaders: false,
+    keyGenerator: (req) => req.ip
+});
+app.use('/api/', apiLimiter);
 
 // Initialize Alpaca SDK
 let alpaca = null;
@@ -337,10 +351,26 @@ app.post('/api/orders', async (req, res) => {
 
     const { symbol, qty, side, type = 'market', timeInForce = 'day', limitPrice } = req.body;
 
+    const symbolPattern = /^[A-Z.]{1,10}$/;
+    const parsedQty = Number(qty);
+
+    if (typeof symbol !== 'string' || !symbolPattern.test(symbol)) {
+        return res.status(400).json({ error: 'Invalid symbol' });
+    }
+    if (!['buy', 'sell'].includes(side)) {
+        return res.status(400).json({ error: 'Invalid side' });
+    }
+    if (!Number.isFinite(parsedQty) || parsedQty <= 0 || parsedQty > 1000000) {
+        return res.status(400).json({ error: 'Invalid quantity' });
+    }
+    if (type === 'limit' && (!Number.isFinite(Number(limitPrice)) || Number(limitPrice) <= 0)) {
+        return res.status(400).json({ error: 'Invalid limit price' });
+    }
+
     try {
         const orderData = {
             symbol,
-            qty: qty.toString(),
+            qty: parsedQty.toString(),
             side,
             type,
             time_in_force: timeInForce
