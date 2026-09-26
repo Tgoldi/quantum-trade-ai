@@ -24,6 +24,11 @@ class AITradingService {
     }
 
     async queryLLM(model, prompt, temperature = 0.7) {
+        const allowedModels = Object.values(this.models);
+        if (!allowedModels.includes(model)) {
+            console.error(`❌ Rejected query to unlisted model: ${model}`);
+            return null;
+        }
         try {
             const response = await axios.post(`${this.ollamaUrl}/api/generate`, {
                 model: model,

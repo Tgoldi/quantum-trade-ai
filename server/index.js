@@ -3,6 +3,9 @@
 
 const express = require('express');
 const cors = require('cors');
+const helmet = require('helmet');
+const rateLimit = require('express-rate-limit');
+const jwt = require('jsonwebtoken');
 const WebSocket = require('ws');
 const Alpaca = require('@alpacahq/alpaca-trade-api');
 const OptimizedAITradingService = require('./optimizedAIService');
@@ -12,12 +15,80 @@ require('dotenv').config();
 const app = express();
 const PORT = process.env.PORT || 3001;
 
+// Trust the first proxy hop (e.g. load balancer) so req.ip is the real client IP
+app.set('trust proxy', 1);
+
 // Middleware
+app.use(helmet());
 app.use(cors({
     origin: process.env.FRONTEND_URL || 'http://localhost:5173',
     credentials: true
 }));
 app.use(express.json());
+
+// General API rate limiting
+const apiLimiter = rateLimit({
+    windowMs: 15 * 60 * 1000,
+    max: 100,
+    standardHeaders: true,
+    legacyHeaders: false
+});
+app.use('/api/', apiLimiter);
+
+// Stricter rate limiting for costly/sensitive endpoints, keyed by authenticated user
+const sensitiveLimiter = rateLimit({
+    windowMs: 15 * 60 * 1000,
+    max: 20,
+    standardHeaders: true,
+    legacyHeaders: false,
+    keyGenerator: (req) => (req.user && req.user.id) ? `user:${req.user.id}` : req.ip
+});
+
+// JWT authentication middleware
+function requireAuth(req, res, next) {
+    const authHeader = req.headers['authorization'] || '';
+    const token = authHeader.startsWith('Bearer ') ? authHeader.slice(7) : null;
+
+    if (!token) {
+        return res.status(401).json({ error: 'Authentication required' });
+    }
+
+    if (!process.env.JWT_SECRET) {
+        console.error('JWT_SECRET not configured; refusing to authenticate requests');
+        return res.status(500).json({ error: 'Server misconfiguration' });
+    }
+
+    try {
+        const decoded = jwt.verify(token, process.env.JWT_SECRET);
+        req.user = decoded;
+        next();
+    } catch (err) {
+        return res.status(401).json({ error: 'Invalid or expired token' });
+    }
+}
+
+// Basic input validators
+const SYMBOL_PATTERN = /^[A-Z]{1,5}$/;
+
+function isValidOrderInput({ symbol, qty, side, limitPrice, type }) {
+    if (typeof symbol !== 'string' || !SYMBOL_PATTERN.test(symbol)) {
+        return 'Invalid symbol';
+    }
+    const qtyNum = Number(qty);
+    if (!Number.isFinite(qtyNum) || qtyNum <= 0 || qtyNum > 100000) {
+        return 'Invalid quantity';
+    }
+    if (side !== 'buy' && side !== 'sell') {
+        return 'Invalid side';
+    }
+    if (type === 'limit') {
+        const limitNum = Number(limitPrice);
+        if (!Number.isFinite(limitNum) || limitNum <= 0) {
+            return 'Invalid limit price';
+        }
+    }
+    return null;
+}
 
 // Initialize Alpaca SDK
 let alpaca = null;
@@ -330,12 +401,17 @@ app.get('/api/market-movers', async (req, res) => {
 });
 
 // Place order
-app.post('/api/orders', async (req, res) => {
+app.post('/api/orders', requireAuth, sensitiveLimiter, async (req, res) => {
     if (!alpaca) {
         return res.status(400).json({ error: 'Alpaca not configured' });
     }
 
     const { symbol, qty, side, type = 'market', timeInForce = 'day', limitPrice } = req.body;
+
+    const validationError = isValidOrderInput({ symbol, qty, side, limitPrice, type });
+    if (validationError) {
+        return res.status(400).json({ error: validationError });
+    }
 
     try {
         const orderData = {
@@ -359,7 +435,7 @@ app.post('/api/orders', async (req, res) => {
 });
 
 // Get orders
-app.get('/api/orders', async (req, res) => {
+app.get('/api/orders', requireAuth, async (req, res) => {
     if (!alpaca) {
         return res.status(400).json({ error: 'Alpaca not configured' });
     }
@@ -377,7 +453,7 @@ app.get('/api/orders', async (req, res) => {
 });
 
 // AI Trading Analysis
-app.post('/api/ai/analyze', async (req, res) => {
+app.post('/api/ai/analyze', requireAuth, sensitiveLimiter, async (req, res) => {
     try {
         const { symbol } = req.body;
 
@@ -434,7 +510,7 @@ app.post('/api/ai/analyze', async (req, res) => {
 });
 
 // AI Portfolio Analysis
-app.get('/api/ai/portfolio', async (req, res) => {
+app.get('/api/ai/portfolio', requireAuth, sensitiveLimiter, async (req, res) => {
     try {
         const aiAvailable = await aiService.isAvailable();
         if (!aiAvailable) {
@@ -487,7 +563,7 @@ app.get('/api/ai/portfolio', async (req, res) => {
 });
 
 // Batch AI Analysis (Multiple stocks)
-app.post('/api/ai/batch', async (req, res) => {
+app.post('/api/ai/batch', requireAuth, sensitiveLimiter, async (req, res) => {
     try {
         const { symbols } = req.body;
         
@@ -537,7 +613,7 @@ app.post('/api/ai/batch', async (req, res) => {
 });
 
 // Demo AI Analysis (Simplified)
-app.post('/api/ai/demo', async (req, res) => {
+app.post('/api/ai/demo', requireAuth, sensitiveLimiter, async (req, res) => {
     try {
         const { symbol } = req.body;
 
@@ -595,7 +671,7 @@ app.post('/api/ai/demo', async (req, res) => {
 });
 
 // Generate Trading Algorithm
-app.post('/api/ai/algorithm', async (req, res) => {
+app.post('/api/ai/algorithm', requireAuth, sensitiveLimiter, async (req, res) => {
     try {
         const { symbol, strategy } = req.body;
 

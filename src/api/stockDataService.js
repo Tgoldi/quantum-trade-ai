@@ -7,14 +7,16 @@ import alpacaService from './alpacaService.js';
 
 class StockDataService {
     constructor() {
-    // API keys (you'll need to register for these)
-    // For Vite, we need to use import.meta.env
-    this.alpacaApiKey = import.meta.env.VITE_ALPACA_API_KEY || '';
-    this.alpacaSecretKey = import.meta.env.VITE_ALPACA_SECRET_KEY || '';
-    this.alpacaPaper = import.meta.env.VITE_ALPACA_PAPER_TRADING === 'true';
-    
-    this.finnhubApiKey = import.meta.env.VITE_FINNHUB_API_KEY || 'demo';
-    this.alphaVantageApiKey = import.meta.env.VITE_ALPHA_VANTAGE_API_KEY || 'demo';
+    // SECURITY: API secret keys must never be embedded in client-side bundles.
+    // Real market data / trading calls must go through the backend proxy
+    // (see server/fastServer.js), which holds the real credentials server-side.
+    // No VITE_*-prefixed secret keys are read here anymore.
+    this.alpacaApiKey = '';
+    this.alpacaSecretKey = '';
+    this.alpacaPaper = true;
+
+    this.finnhubApiKey = 'demo';
+    this.alphaVantageApiKey = 'demo';
 
         // WebSocket connections for real-time data
         this.alpacaWsConnection = null;

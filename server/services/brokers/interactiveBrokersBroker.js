@@ -241,9 +241,21 @@ class InteractiveBrokersBroker extends BaseBroker {
                 ibOrder.lmtPrice = order.limitPrice;
             }
 
-            // Set up callback for order status
+            // Set up callback for order status, guarded against stale/expired
+            // callbacks resolving/rejecting a promise that has already settled.
+            let settled = false;
+            const placedAt = Date.now();
+            const ORDER_TIMEOUT_MS = 30000;
+
             this.orderCallbacks.set(orderId, (status) => {
+                // Reject any callback that arrives after our own timeout window
+                // has elapsed, to avoid cross-order/stale resolution races.
+                if (settled || Date.now() - placedAt > ORDER_TIMEOUT_MS) {
+                    return;
+                }
+
                 if (status.status === 'Filled') {
+                    settled = true;
                     resolve(this.normalizeOrder({
                         id: orderId.toString(),
                         symbol: order.symbol,
@@ -256,6 +268,7 @@ class InteractiveBrokersBroker extends BaseBroker {
                     }));
                     this.orderCallbacks.delete(orderId);
                 } else if (status.status === 'Cancelled' || status.status === 'Rejected') {
+                    settled = true;
                     reject(new Error(`Order ${status.status}: ${orderId}`));
                     this.orderCallbacks.delete(orderId);
                 }
@@ -266,11 +279,12 @@ class InteractiveBrokersBroker extends BaseBroker {
 
             // Timeout after 30 seconds
             setTimeout(() => {
-                if (this.orderCallbacks.has(orderId)) {
+                if (this.orderCallbacks.has(orderId) && !settled) {
+                    settled = true;
                     this.orderCallbacks.delete(orderId);
                     reject(new Error('Order placement timeout'));
                 }
-            }, 30000);
+            }, ORDER_TIMEOUT_MS);
         });
     }
 
