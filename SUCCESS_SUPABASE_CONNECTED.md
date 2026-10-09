@@ -11,12 +11,12 @@ The original error was caused by a Ruby/Rails server running on port 3001 instea
 The backend now connects to your Supabase PostgreSQL database instead of localhost.
 
 **Configuration Applied:**
-- Host: `aws-1-ap-southeast-1.pooler.supabase.com`
+- Host: `aws-<n>-<region>.pooler.supabase.com`
 - Port: `6543` (connection pooler)
 - Database: `postgres`
-- User: `postgres.ngwbwanpamfqoaitofih`
+- User: `postgres.<project-ref>`
 - SSL: Enabled
-- Password: Set ✅
+- Password: Set in `server/.env` (`<db-password>`, never commit it) ✅
 
 ### 3. **Database Schema Created - COMPLETE**
 All database tables have been created in Supabase:
@@ -85,7 +85,7 @@ Successfully registered a test user:
            │
 ┌──────────▼────────────────────┐
 │  Supabase PostgreSQL          │
-│  ngwbwanpamfqoaitofih         │
+│  <project-ref>                │
 │  Region: Singapore            │
 │                               │
 │  - Database Tables ✅         │
@@ -204,7 +204,7 @@ http://localhost:5173
 ## 📊 Database Stats
 
 ### Supabase Project
-- **URL:** https://ngwbwanpamfqoaitofih.supabase.co
+- **URL:** https://<project-ref>.supabase.co
 - **Region:** Southeast Asia (Singapore)
 - **Database:** PostgreSQL 15+
 - **Tables:** 12 tables created
@@ -288,7 +288,9 @@ Supabase requires SSL connections. This is enabled in the configuration (`DB_SSL
 
 ## 🔐 Security Reminders
 
-- ✅ Database password is secure
+- ⚠️ Any database password or anon key previously committed to this repository's history must be rotated in the Supabase dashboard (Project Settings → Database / API)
+- ⚠️ Verify Row Level Security (RLS) policies are enabled on all tables
+- ✅ Database password is kept only in `server/.env` (gitignored)
 - ✅ SSL encryption enabled
 - ✅ JWT tokens for authentication
 - ✅ Password hashing with bcrypt

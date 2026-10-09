@@ -21,6 +21,17 @@ class PaperTradingService {
             strategy = 'manual'
         } = order;
 
+        // Validate quantity: must be a positive, finite, bounded number
+        const MAX_QUANTITY = 1000000;
+        const qty = Number(quantity);
+        if (!Number.isFinite(qty) || qty <= 0 || qty > MAX_QUANTITY) {
+            throw new Error('Invalid quantity');
+        }
+        if (side !== 'buy' && side !== 'sell') {
+            throw new Error('Invalid order side');
+        }
+        const ownerId = order.userId || null;
+
         // Get current market price
         const currentPrice = await this.getCurrentPrice(symbol);
 
@@ -39,18 +50,28 @@ class PaperTradingService {
         }
 
         // Calculate costs
-        const totalAmount = quantity * executionPrice;
+        const totalAmount = qty * executionPrice;
         const commission = totalAmount * this.commissionRate;
         const totalCost = side === 'buy' ? totalAmount + commission : totalAmount - commission;
 
         return await transaction(async (client) => {
-            // Check portfolio balance for buy orders
-            if (side === 'buy') {
-                const result = await client.query(
-                    'SELECT current_balance FROM portfolios WHERE id = $1',
+            // Lock the portfolio row (and enforce ownership when a caller id is supplied)
+            const lockResult = ownerId
+                ? await client.query(
+                    'SELECT current_balance FROM portfolios WHERE id = $1 AND user_id = $2 FOR UPDATE',
+                    [portfolioId, ownerId]
+                )
+                : await client.query(
+                    'SELECT current_balance FROM portfolios WHERE id = $1 FOR UPDATE',
                     [portfolioId]
                 );
-                const portfolio = result.rows[0]; // Fix: access rows array
+            if (!lockResult.rows[0]) {
+                throw new Error('Portfolio not found');
+            }
+
+            // Check portfolio balance for buy orders
+            if (side === 'buy') {
+                const portfolio = lockResult.rows[0];
 
                 if (!portfolio || parseFloat(portfolio.current_balance) < totalCost) {
                     throw new Error('Insufficient funds for this trade');
@@ -64,12 +85,12 @@ class PaperTradingService {
             } else {
                 // Check if position exists for sell orders
                 const result = await client.query(
-                    'SELECT quantity FROM positions WHERE portfolio_id = $1 AND symbol = $2',
+                    'SELECT quantity FROM positions WHERE portfolio_id = $1 AND symbol = $2 FOR UPDATE',
                     [portfolioId, symbol]
                 );
                 const position = result.rows[0]; // Fix: access rows array
 
-                if (!position || parseFloat(position.quantity) < quantity) {
+                if (!position || parseFloat(position.quantity) < qty) {
                     throw new Error('Insufficient shares to sell');
                 }
 
@@ -85,23 +106,23 @@ class PaperTradingService {
             await client.query(
                 `INSERT INTO trades (id, portfolio_id, symbol, side, quantity, price, commission, total_amount, order_type, strategy, execution_time, status)
          VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, NOW(), 'filled')`,
-                [tradeId, portfolioId, symbol, side, quantity, executionPrice, commission, totalAmount, orderType, strategy]
+                [tradeId, portfolioId, symbol, side, qty, executionPrice, commission, totalAmount, orderType, strategy]
             );
 
             // Update or create position
-            await this.updatePosition(client, portfolioId, symbol, side, quantity, executionPrice);
+            await this.updatePosition(client, portfolioId, symbol, side, qty, executionPrice);
 
             // Invalidate cache
             await cache.del(`portfolio:${portfolioId}`);
             await cache.del(`positions:${portfolioId}`);
 
             // Publish real-time update
-            await cache.publish('trades', {
+            await cache.publish(`trades:${portfolioId}`, {
                 portfolioId,
                 tradeId,
                 symbol,
                 side,
-                quantity,
+                quantity: qty,
                 price: executionPrice
             });
 
@@ -245,9 +266,22 @@ class PaperTradingService {
             30
         );
 
-        // Update current prices in real-time
+        // Update current prices in real-time (cap positions, dedupe symbol lookups)
+        const MAX_POSITIONS = 200;
+        if (positions.length > MAX_POSITIONS) {
+            positions.length = MAX_POSITIONS;
+        }
+        const uniqueSymbols = [...new Set(positions.map(p => p.symbol))];
+        const priceMap = new Map();
+        const BATCH_SIZE = 10;
+        for (let i = 0; i < uniqueSymbols.length; i += BATCH_SIZE) {
+            const batch = uniqueSymbols.slice(i, i + BATCH_SIZE);
+            const prices = await Promise.all(batch.map(s => this.getCurrentPrice(s)));
+            batch.forEach((s, idx) => priceMap.set(s, prices[idx]));
+        }
+
         for (const position of positions) {
-            const currentPrice = await this.getCurrentPrice(position.symbol);
+            const currentPrice = priceMap.get(position.symbol);
             position.current_price = currentPrice;
             position.market_value = position.quantity * currentPrice;
             position.unrealized_pnl = position.market_value - (position.quantity * position.average_cost);

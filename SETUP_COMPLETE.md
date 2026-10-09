@@ -68,33 +68,45 @@ Open your browser: **http://localhost:5173**
 ### Step 1: Create Environment File
 Create `.env` in the project root:
 
+Generate random secrets first (never reuse example values or commit them):
+
 ```bash
-cat > .env << 'EOF'
+export DB_PASSWORD="$(openssl rand -hex 24)"
+export JWT_SECRET="$(openssl rand -hex 48)"
+```
+
+Then create the `.env` file:
+
+```bash
+cat > .env << EOF
 # Database (already configured in docker-compose)
 DB_HOST=postgres
 DB_PORT=5432
 DB_NAME=quantumtrade
 DB_USER=postgres
-DB_PASSWORD=postgres
+DB_PASSWORD=${DB_PASSWORD}
 
 # Redis (already configured)
 REDIS_HOST=redis
 REDIS_PORT=6379
 
-# JWT Secret (generate a random string)
-JWT_SECRET=your-super-secret-jwt-key-change-this-in-production
+# JWT Secret (randomly generated above)
+JWT_SECRET=${JWT_SECRET}
 
 # Interactive Brokers (optional - for live trading)
 IB_HOST=127.0.0.1
 IB_PORT=7497
 
 # Optional: API Keys for market data
-FINNHUB_API_KEY=your-finnhub-key
-ALPHA_VANTAGE_API_KEY=your-alpha-vantage-key
+FINNHUB_API_KEY=
+ALPHA_VANTAGE_API_KEY=
 EOF
+chmod 600 .env
 ```
 
-**What this does:** Configures environment variables for the backend services.
+**What this does:** Configures environment variables for the backend services using freshly generated secrets. Fill in the optional API keys with your own values. Never commit `.env` to version control.
+
+**Security note:** In `docker-compose-full.yml`, bind PostgreSQL and Redis to localhost only (e.g. `"127.0.0.1:5432:5432"` and `"127.0.0.1:6379:6379"`) or omit their host port mappings entirely so they are not exposed to your network.
 
 ### Step 2: Start Docker Containers
 From the project root:
@@ -104,8 +116,8 @@ docker-compose -f docker-compose-full.yml up -d
 ```
 
 **What this does:** Starts 5 containers:
-- **PostgreSQL** (port 5432) - Database with TimescaleDB
-- **Redis** (port 6379) - Caching layer
+- **PostgreSQL** (port 5432, localhost only) - Database with TimescaleDB
+- **Redis** (port 6379, localhost only) - Caching layer
 - **Backend** (port 3001) - Node.js API server
 - **Frontend** (port 5173) - React app
 - **Nginx** (port 80) - Reverse proxy

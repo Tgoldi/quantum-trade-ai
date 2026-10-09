@@ -86,21 +86,31 @@ EOF
 ### Option B: Full Stack (Docker with PostgreSQL/Redis)
 
 ```bash
-# Create backend environment file
-cat > server/.env << 'EOF'
+# Generate strong, unique secrets OUTSIDE the quoted heredoc
+# (a quoted heredoc would NOT expand $(...) and would write it literally)
+JWT_SECRET="$(openssl rand -base64 32)"
+DB_PASSWORD="$(openssl rand -base64 24 | tr -d '=+/')"
+
+# Fail if a secret is missing or empty
+: "${JWT_SECRET:?JWT_SECRET must be set}"
+: "${DB_PASSWORD:?DB_PASSWORD must be set}"
+
+# Create backend environment file (unquoted heredoc so variables expand)
+umask 077
+cat > server/.env << EOF
 # Database Configuration
 DB_HOST=postgres
 DB_PORT=5432
 DB_NAME=quantumtrade
 DB_USER=postgres
-DB_PASSWORD=postgres_secure_password_change_this
+DB_PASSWORD=${DB_PASSWORD}
 
 # Redis Configuration
 REDIS_HOST=redis
 REDIS_PORT=6379
 
-# JWT Secret (generate a secure random string)
-JWT_SECRET=$(openssl rand -base64 32)
+# JWT Secret (generated above)
+JWT_SECRET=${JWT_SECRET}
 
 # Node Environment
 NODE_ENV=production
@@ -112,6 +122,8 @@ PORT=3001
 # FINNHUB_API_KEY=your_key_here
 EOF
 ```
+
+> The backend must refuse to start if `JWT_SECRET` is missing or equals a known placeholder, and the database password must be strong and unique (never a default).
 
 ---
 
@@ -157,10 +169,12 @@ docker ps
 docker-compose -f docker-compose-full.yml logs -f
 ```
 
-**Access:**
+**Access (development/testing only; for production put these behind the Nginx TLS reverse proxy in Step 7 and bind the backend to localhost):**
 - Frontend: `http://50.217.254.167:5173`
 - Backend API: `http://50.217.254.167:3001`
 - API Health: `http://50.217.254.167:3001/api/health`
+
+> Restrict `/api/stats` and any monitoring/debug routes to authenticated admin users.
 
 ### Option C: Production Docker Setup
 
@@ -174,26 +188,24 @@ docker-compose -f docker-compose-production.yml up -d --build
 docker-compose -f docker-compose-production.yml ps
 ```
 
-**Access:**
-- Frontend: `http://50.217.254.167:8081`
-- Backend API: `http://50.217.254.167:3001`
+**Access:** serve the app only through the TLS-terminating Nginx reverse proxy (Step 7, with HTTPS enabled). Bind the frontend and backend to `localhost` and do not expose ports 3001 or 8081 publicly.
 
 ---
 
 ## 🔒 Step 6: Configure Firewall (Important!)
 
-Vast.ai instances may have firewalls. Configure ports:
+Vast.ai instances may have firewalls. Only HTTP/HTTPS should be publicly reachable:
 
 ```bash
-# Allow HTTP/HTTPS
+# SSH (your Vast.ai SSH port) must remain reachable
+ufw allow 41221/tcp
+
+# Allow HTTP/HTTPS only
 ufw allow 80/tcp
 ufw allow 443/tcp
 
-# Allow application ports
-ufw allow 3000/tcp  # Frontend (if using serve)
-ufw allow 3001/tcp  # Backend API
-ufw allow 5173/tcp  # Frontend (if using Docker)
-ufw allow 8081/tcp  # Frontend (production)
+# Do NOT open application ports (3000, 3001, 5173, 8081) publicly;
+# keep them bound to localhost behind the reverse proxy.
 
 # Enable firewall
 ufw enable
@@ -206,7 +218,7 @@ ufw status
 
 ## 🌐 Step 7: Set Up Reverse Proxy (Optional but Recommended)
 
-For production, use Nginx as a reverse proxy:
+For production, use Nginx as a reverse proxy. TLS is mandatory: set up HTTPS (e.g. Let's Encrypt via certbot) and redirect HTTP to HTTPS. Bind the backend to `127.0.0.1` only.
 
 ```bash
 # Install Nginx

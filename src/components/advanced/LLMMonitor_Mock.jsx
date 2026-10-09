@@ -19,6 +19,29 @@ import {
 } from "lucide-react";
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, BarChart, Bar } from 'recharts';
 
+// Cryptographically secure random float in [0, 1)
+const secureRandom = () => {
+    const buf = new Uint32Array(1);
+    crypto.getRandomValues(buf);
+    return buf[0] / 4294967296;
+};
+
+// Build a fallback data point when the metrics endpoint is unavailable
+const buildFallbackDataPoint = () => {
+    const now = new Date();
+    return {
+        time: now.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', second: '2-digit' }),
+        response_time: (1.5 + secureRandom() * 2.5).toFixed(2),
+        success_rate: (97 + secureRandom() * 2.5).toFixed(1),
+        requests: Math.floor(15 + secureRandom() * 25),
+        active_users: Math.floor(5 + secureRandom() * 15),
+        tokens_per_second: Math.floor(20 + secureRandom() * 30),
+        error_rate: (secureRandom() * 2).toFixed(2),
+        queue_length: Math.floor(secureRandom() * 8),
+        cost_per_hour: "0.00"
+    };
+};
+
 export default function LLMMonitor() {
     const [llmData, setLlmData] = useState([]);
     const [performanceMetrics, setPerformanceMetrics] = useState([]);
@@ -62,7 +85,7 @@ export default function LLMMonitor() {
     // Fetch real-time system health
     const fetchLiveSystemHealth = async () => {
         try {
-            const response = await fetch('http://localhost:3001/api/llm/health');
+            const response = await fetch('/api/llm/health');
             if (response.ok) {
                 const healthData = await response.json();
                 setSystemHealth(healthData);
@@ -83,7 +106,7 @@ export default function LLMMonitor() {
             console.log('📡 Fetching real LLM data from server...');
             
             // Fetch real data from your server
-            const response = await fetch('http://localhost:3001/api/llm/models');
+            const response = await fetch('/api/llm/models');
             if (!response.ok) {
                 throw new Error(`HTTP error! status: ${response.status}`);
             }
@@ -101,7 +124,7 @@ export default function LLMMonitor() {
 
     const loadPerformanceMetrics = async () => {
         try {
-            const response = await fetch('http://localhost:3001/api/llm/metrics');
+            const response = await fetch('/api/llm/metrics');
             if (response.ok) {
                 const metricsData = await response.json();
                 setPerformanceMetrics(metricsData.historical || []);
@@ -119,42 +142,20 @@ export default function LLMMonitor() {
     const updateRealTimeMetrics = async () => {
         try {
             // Fetch real-time metrics from server
-            const response = await fetch('http://localhost:3001/api/llm/metrics');
+            const response = await fetch('/api/llm/metrics');
             if (response.ok) {
                 const metricsData = await response.json();
                 setRealTimeData(metricsData);
                 console.log('✅ Updated real-time metrics from server');
             } else {
                 // Fallback to local generation if server unavailable
-                const now = new Date();
-                const newDataPoint = {
-                    time: now.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', second: '2-digit' }),
-                    response_time: (1.5 + Math.random() * 2.5).toFixed(2),
-                    success_rate: (97 + Math.random() * 2.5).toFixed(1),
-                    requests: Math.floor(15 + Math.random() * 25),
-                    active_users: Math.floor(5 + Math.random() * 15),
-                    tokens_per_second: Math.floor(20 + Math.random() * 30),
-                    error_rate: (Math.random() * 2).toFixed(2),
-                    queue_length: Math.floor(Math.random() * 8),
-                    cost_per_hour: "0.00"
-                };
+                const newDataPoint = buildFallbackDataPoint();
                 setRealTimeData(prev => [...prev.slice(-29), newDataPoint]);
             }
         } catch (error) {
             console.error('Error fetching real-time metrics:', error);
             // Fallback for network errors
-            const now = new Date();
-            const newDataPoint = {
-                time: now.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', second: '2-digit' }),
-                response_time: (1.5 + Math.random() * 2.5).toFixed(2),
-                success_rate: (97 + Math.random() * 2.5).toFixed(1),
-                requests: Math.floor(15 + Math.random() * 25),
-                active_users: Math.floor(5 + Math.random() * 15),
-                tokens_per_second: Math.floor(20 + Math.random() * 30),
-                error_rate: (Math.random() * 2).toFixed(2),
-                queue_length: Math.floor(Math.random() * 8),
-                cost_per_hour: "0.00"
-            };
+            const newDataPoint = buildFallbackDataPoint();
             setRealTimeData(prev => [...prev.slice(-29), newDataPoint]);
         }
 
@@ -214,7 +215,7 @@ export default function LLMMonitor() {
             console.log(`🧪 Testing investment decision for ${testSymbol}...`);
             
             // Call your AI analysis endpoint
-            const response = await fetch('http://localhost:3001/api/ai/analyze', {
+            const response = await fetch('/api/ai/analyze', {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',

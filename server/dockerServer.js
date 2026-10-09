@@ -25,6 +25,27 @@ const apiLimiter = rateLimit({
 });
 app.use('/api/', apiLimiter);
 
+// Authentication for sensitive /api routes (everything except /api/health).
+// Configure API_AUTH_TOKEN to enable access; without it, sensitive routes are refused.
+function requireAuth(req, res, next) {
+    if (req.path === '/health' && req.method === 'GET') {
+        return next();
+    }
+    const expected = process.env.API_AUTH_TOKEN;
+    if (!expected) {
+        return res.status(503).json({ error: 'API authentication is not configured' });
+    }
+    const header = req.headers['authorization'] || '';
+    const provided = header.startsWith('Bearer ') ? header.slice(7) : '';
+    const a = Buffer.from(provided);
+    const b = Buffer.from(expected);
+    if (a.length !== b.length || !require('crypto').timingSafeEqual(a, b)) {
+        return res.status(401).json({ error: 'Unauthorized' });
+    }
+    next();
+}
+app.use('/api/', requireAuth);
+
 // Initialize Multi-Model AI Trading Service
 // Initialize Multi-Model AI Trading Service with Docker-optimized settings
 const multiAI = new MultiModelAITradingService();
@@ -72,7 +93,15 @@ if (process.env.ALPACA_API_KEY && process.env.ALPACA_SECRET_KEY) {
 // WebSocket server for frontend communication
 const wss = new WebSocket.Server({ port: 8080 });
 
-wss.on('connection', (ws) => {
+const allowedOrigins = [process.env.FRONTEND_URL || 'https://yourdomain.com'];
+
+wss.on('connection', (ws, request) => {
+    const origin = request.headers.origin;
+    if (!origin || !allowedOrigins.includes(origin)) {
+        console.warn(`🚫 Rejected WebSocket connection from origin: ${origin}`);
+        ws.close(1008, 'Origin not allowed');
+        return;
+    }
     console.log('📱 Frontend client connected');
 
     ws.on('close', () => {

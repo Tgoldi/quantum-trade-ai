@@ -217,6 +217,25 @@ class InteractiveBrokersBroker extends BaseBroker {
 
         this.validateOrder(order);
 
+        // Bounds validation before sending to a live broker
+        const MAX_ORDER_QUANTITY = 10000;
+        const MAX_LIMIT_PRICE = 1000000;
+        const quantity = Number(order.quantity);
+        if (!Number.isFinite(quantity) || quantity <= 0 || quantity > MAX_ORDER_QUANTITY) {
+            throw new Error(`Invalid order quantity: must be a positive number no greater than ${MAX_ORDER_QUANTITY}`);
+        }
+        let validatedLimitPrice = null;
+        if (order.orderType.toLowerCase() === 'limit') {
+            validatedLimitPrice = Number(order.limitPrice);
+            if (!Number.isFinite(validatedLimitPrice) || validatedLimitPrice <= 0 || validatedLimitPrice > MAX_LIMIT_PRICE) {
+                throw new Error(`Invalid limit price: must be a positive number no greater than ${MAX_LIMIT_PRICE}`);
+            }
+        }
+        const sideLower = String(order.side).toLowerCase();
+        if (sideLower !== 'buy' && sideLower !== 'sell') {
+            throw new Error('Invalid order side: must be buy or sell');
+        }
+
         return new Promise((resolve, reject) => {
             const orderId = this.nextOrderId++;
 
@@ -231,14 +250,14 @@ class InteractiveBrokersBroker extends BaseBroker {
             // Create IB order
             const ibOrder = {
                 orderId: orderId,
-                action: order.side.toLowerCase() === 'buy' ? OrderAction.BUY : OrderAction.SELL,
-                totalQuantity: order.quantity,
+                action: sideLower === 'buy' ? OrderAction.BUY : OrderAction.SELL,
+                totalQuantity: quantity,
                 orderType: order.orderType.toUpperCase() === 'MARKET' ? OrderType.MKT : OrderType.LMT,
                 tif: TimeInForce.DAY
             };
 
-            if (order.orderType.toLowerCase() === 'limit' && order.limitPrice) {
-                ibOrder.lmtPrice = order.limitPrice;
+            if (validatedLimitPrice !== null) {
+                ibOrder.lmtPrice = validatedLimitPrice;
             }
 
             // Set up callback for order status

@@ -25,6 +25,32 @@ const apiLimiter = rateLimit({
 });
 app.use('/api/', apiLimiter);
 
+// Authentication: all /api routes except /api/health require a shared API token
+const API_AUTH_TOKEN = process.env.API_AUTH_TOKEN;
+
+function extractToken(req) {
+    const header = req.headers['authorization'];
+    if (header && header.startsWith('Bearer ')) {
+        return header.slice(7);
+    }
+    return req.headers['x-api-key'];
+}
+
+function requireAuth(req, res, next) {
+    if (req.path === '/health') {
+        return next();
+    }
+    if (!API_AUTH_TOKEN) {
+        return res.status(503).json({ error: 'Server authentication not configured' });
+    }
+    const token = extractToken(req);
+    if (!token || token !== API_AUTH_TOKEN) {
+        return res.status(401).json({ error: 'Unauthorized' });
+    }
+    next();
+}
+app.use('/api/', requireAuth);
+
 // Initialize Fast AI Trading Service
 const fastAI = new FastAITradingService();
 
@@ -69,7 +95,26 @@ if (process.env.ALPACA_API_KEY && process.env.ALPACA_SECRET_KEY) {
 // WebSocket server for frontend communication
 const wss = new WebSocket.Server({ port: 8080 });
 
-wss.on('connection', (ws) => {
+const allowedOrigins = [process.env.FRONTEND_URL || 'https://yourdomain.com'];
+
+wss.on('connection', (ws, request) => {
+    const origin = request.headers.origin;
+    if (!origin || !allowedOrigins.includes(origin)) {
+        ws.close(1008, 'Origin not allowed');
+        return;
+    }
+
+    let wsToken = null;
+    try {
+        wsToken = new URL(request.url, 'http://localhost').searchParams.get('token');
+    } catch (e) {
+        wsToken = null;
+    }
+    if (!API_AUTH_TOKEN || !wsToken || wsToken !== API_AUTH_TOKEN) {
+        ws.close(1008, 'Unauthorized');
+        return;
+    }
+
     console.log('📱 Frontend client connected');
     
     ws.on('close', () => {

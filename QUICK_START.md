@@ -25,15 +25,17 @@ Create a `.env.local` file in the project root:
 
 ```bash
 # Supabase Configuration
-VITE_SUPABASE_URL=https://ngwbwanpamfqoaitofih.supabase.co
-VITE_SUPABASE_ANON_KEY=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im5nd2J3YW5wYW1mcW9haXRvZmloIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjE1MDMzNDgsImV4cCI6MjA3NzA3OTM0OH0.6kifg9e7LDp2uacxSCsDKSEdFcdpMPzFen1oMgS3iuI
+VITE_SUPABASE_URL=<your-supabase-url>
+VITE_SUPABASE_ANON_KEY=<your-anon-key>
 ```
+
+Find both values in your Supabase dashboard under **Project Settings → API**. Also make sure Row Level Security (RLS) is enabled on every table.
 
 **Quick command:**
 ```bash
 cat > .env.local << 'EOF'
-VITE_SUPABASE_URL=https://ngwbwanpamfqoaitofih.supabase.co
-VITE_SUPABASE_ANON_KEY=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im5nd2J3YW5wYW1mcW9haXRvZmloIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjE1MDMzNDgsImV4cCI6MjA3NzA3OTM0OH0.6kifg9e7LDp2uacxSCsDKSEdFcdpMPzFen1oMgS3iuI
+VITE_SUPABASE_URL=<your-supabase-url>
+VITE_SUPABASE_ANON_KEY=<your-anon-key>
 EOF
 ```
 
@@ -44,7 +46,7 @@ EOF
 **Before starting the app, you need to import the database schema:**
 
 1. Go to [Supabase Dashboard](https://supabase.com/dashboard)
-2. Click on your project: **ngwbwanpamfqoaitofih**
+2. Click on your project
 3. Go to **SQL Editor** (left sidebar)
 4. Click **"New query"**
 5. Open `supabase-schema.sql` in your editor
@@ -159,8 +161,8 @@ npm install
 
 # 2. Create environment file
 cat > .env.local << 'EOF'
-VITE_SUPABASE_URL=https://ngwbwanpamfqoaitofih.supabase.co
-VITE_SUPABASE_ANON_KEY=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im5nd2J3YW5wYW1mcW9haXRvZmloIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjE1MDMzNDgsImV4cCI6MjA3NzA3OTM0OH0.6kifg9e7LDp2uacxSCsDKSEdFcdpMPzFen1oMgS3iuI
+VITE_SUPABASE_URL=<your-supabase-url>
+VITE_SUPABASE_ANON_KEY=<your-anon-key>
 EOF
 
 # 3. Start the app

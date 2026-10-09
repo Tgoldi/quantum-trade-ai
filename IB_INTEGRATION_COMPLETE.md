@@ -148,11 +148,11 @@ else {
 ### Option B: Place Trade via Our App
 Once you fund the account:
 ```bash
+# EMAIL, PASSWORD and PORTFOLIO_ID must be set in your environment (never commit real values)
 TOKEN=$(curl -s -X POST http://localhost:3001/api/auth/login \
   -H "Content-Type: application/json" \
-  -d '{"emailOrUsername":"tomerg.work@gmail.com","password":"Tomergold1!"}' | jq -r '.tokens.accessToken')
+  -d "{\"emailOrUsername\":\"$EMAIL\",\"password\":\"$PASSWORD\"}" | jq -r '.tokens.accessToken')
 
-PORTFOLIO_ID="0f26dd9d-5d65-4e4d-a4ef-914aaadb4c0d"
 
 curl -s -X POST http://localhost:3001/api/trade \
   -H "Authorization: Bearer $TOKEN" \

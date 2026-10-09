@@ -31,7 +31,13 @@ app.use('/api/', apiLimiter);
 const wss = new WebSocket.Server({ port: 8080 });
 const connectedClients = new Set();
 
-wss.on('connection', (ws) => {
+const allowedWsOrigin = 'http://localhost:5173';
+
+wss.on('connection', (ws, request) => {
+    if (request.headers.origin !== allowedWsOrigin) {
+        ws.close();
+        return;
+    }
     console.log('📱 Frontend client connected');
     connectedClients.add(ws);
 

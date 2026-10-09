@@ -36,7 +36,7 @@ class AuthService {
         );
 
         if (existingUser) {
-            throw new Error('User with this email or username already exists');
+            throw new Error('Unable to complete registration with the provided details');
         }
 
         // Hash password
@@ -186,6 +186,10 @@ class AuthService {
         try {
             const decoded = jwt.verify(token, this.jwtSecret);
 
+            if (decoded.type !== 'access') {
+                throw new Error('Invalid token type');
+            }
+
             // Check if token is invalidated
             const invalidated = await cache.get(`tokens:invalidated:${decoded.userId}`);
             if (invalidated && invalidated > decoded.iat * 1000) {
@@ -218,6 +222,12 @@ class AuthService {
 
             if (decoded.type !== 'refresh') {
                 throw new Error('Invalid refresh token');
+            }
+
+            // Reject refresh tokens issued before the invalidation timestamp
+            const invalidatedAt = await cache.get(`tokens:invalidated:${decoded.userId}`);
+            if (invalidatedAt && invalidatedAt > decoded.iat * 1000) {
+                throw new Error('Token has been invalidated');
             }
 
             // Check if user still exists and is active
