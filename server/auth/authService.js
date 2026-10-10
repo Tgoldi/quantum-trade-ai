@@ -62,6 +62,8 @@ class AuthService {
 
             // Generate tokens
             const tokens = this.generateTokens(userId, email, username);
+            await cache.set(`refresh:current:${userId}`, tokens.refreshJti, 60 * 60 * 24 * 30);
+            delete tokens.refreshJti;
 
             // Cache session
             await cache.set(`session:${userId}`, {
@@ -136,6 +138,8 @@ class AuthService {
 
         // Generate tokens
         const tokens = this.generateTokens(user.id, user.email, user.username);
+        await cache.set(`refresh:current:${user.id}`, tokens.refreshJti, 60 * 60 * 24 * 30);
+        delete tokens.refreshJti;
 
         // Cache session
         await cache.set(`session:${user.id}`, {
@@ -172,6 +176,7 @@ class AuthService {
     async logout(userId) {
         // Remove from cache
         await cache.del(`session:${userId}`);
+        await cache.del(`refresh:current:${userId}`);
 
         // Invalidate all tokens for this user
         await cache.set(`tokens:invalidated:${userId}`, Date.now(), 60 * 60 * 24 * 30);
@@ -185,6 +190,11 @@ class AuthService {
     async verifyToken(token) {
         try {
             const decoded = jwt.verify(token, this.jwtSecret);
+
+            // Only access tokens may be used to authenticate requests
+            if (decoded.type !== 'access') {
+                throw new Error('Invalid token type');
+            }
 
             // Check if token is invalidated
             const invalidated = await cache.get(`tokens:invalidated:${decoded.userId}`);
@@ -216,8 +226,23 @@ class AuthService {
         try {
             const decoded = jwt.verify(refreshToken, this.jwtSecret);
 
-            if (decoded.type !== 'refresh') {
+            if (decoded.type !== 'refresh' || !decoded.jti) {
                 throw new Error('Invalid refresh token');
+            }
+
+            // Honour logout / password change invalidation
+            const invalidated = await cache.get(`tokens:invalidated:${decoded.userId}`);
+            if (invalidated && invalidated > decoded.iat * 1000) {
+                throw new Error('Token has been invalidated');
+            }
+
+            // Single-use check: only the most recently issued refresh token is valid
+            const currentJti = await cache.get(`refresh:current:${decoded.userId}`);
+            if (!currentJti || currentJti !== decoded.jti) {
+                // Replay of a rotated/unknown token: revoke all tokens for this user
+                await cache.set(`tokens:invalidated:${decoded.userId}`, Date.now(), 60 * 60 * 24 * 30);
+                await cache.del(`refresh:current:${decoded.userId}`);
+                throw new Error('Refresh token reuse detected');
             }
 
             // Check if user still exists and is active
@@ -230,10 +255,11 @@ class AuthService {
                 throw new Error('User not found or inactive');
             }
 
-            // Generate new access token
+            // Rotate: issue new tokens (new refresh token id replaces the old one)
             const tokens = this.generateTokens(user.id, user.email, user.username);
+            await cache.set(`refresh:current:${user.id}`, tokens.refreshJti, 60 * 60 * 24 * 30);
 
-            return tokens;
+            return { accessToken: tokens.accessToken, refreshToken: tokens.refreshToken, expiresIn: tokens.expiresIn };
         } catch (error) {
             throw new Error('Invalid refresh token');
         }
@@ -254,12 +280,14 @@ class AuthService {
             { expiresIn: this.jwtExpiration }
         );
 
+        const refreshJti = uuidv4();
         const refreshToken = jwt.sign(
             {
                 userId,
                 email,
                 username,
-                type: 'refresh'
+                type: 'refresh',
+                jti: refreshJti
             },
             this.jwtSecret,
             { expiresIn: this.refreshTokenExpiration }
@@ -268,6 +296,7 @@ class AuthService {
         return {
             accessToken,
             refreshToken,
+            refreshJti,
             expiresIn: 7 * 24 * 60 * 60 // 7 days in seconds
         };
     }

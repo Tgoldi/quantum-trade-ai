@@ -21,19 +21,19 @@ cd server && npm install && cd ..
 
 ## **Step 2: Set Up Environment Variables** (1 minute)
 
-Create a `.env.local` file in the project root:
+Create a `.env.local` file in the project root. Copy the values from your own Supabase dashboard (**Project Settings → API**):
 
 ```bash
 # Supabase Configuration
-VITE_SUPABASE_URL=https://ngwbwanpamfqoaitofih.supabase.co
-VITE_SUPABASE_ANON_KEY=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im5nd2J3YW5wYW1mcW9haXRvZmloIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjE1MDMzNDgsImV4cCI6MjA3NzA3OTM0OH0.6kifg9e7LDp2uacxSCsDKSEdFcdpMPzFen1oMgS3iuI
+VITE_SUPABASE_URL=https://YOUR_PROJECT.supabase.co
+VITE_SUPABASE_ANON_KEY=YOUR_SUPABASE_ANON_KEY
 ```
 
 **Quick command:**
 ```bash
 cat > .env.local << 'EOF'
-VITE_SUPABASE_URL=https://ngwbwanpamfqoaitofih.supabase.co
-VITE_SUPABASE_ANON_KEY=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im5nd2J3YW5wYW1mcW9haXRvZmloIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjE1MDMzNDgsImV4cCI6MjA3NzA3OTM0OH0.6kifg9e7LDp2uacxSCsDKSEdFcdpMPzFen1oMgS3iuI
+VITE_SUPABASE_URL=https://YOUR_PROJECT.supabase.co
+VITE_SUPABASE_ANON_KEY=YOUR_SUPABASE_ANON_KEY
 EOF
 ```
 
@@ -44,7 +44,7 @@ EOF
 **Before starting the app, you need to import the database schema:**
 
 1. Go to [Supabase Dashboard](https://supabase.com/dashboard)
-2. Click on your project: **ngwbwanpamfqoaitofih**
+2. Click on your project: **YOUR_PROJECT**
 3. Go to **SQL Editor** (left sidebar)
 4. Click **"New query"**
 5. Open `supabase-schema.sql` in your editor
@@ -157,10 +157,10 @@ npm install
 # 1. Install dependencies
 npm install
 
-# 2. Create environment file
+# 2. Create environment file (use values from your Supabase dashboard)
 cat > .env.local << 'EOF'
-VITE_SUPABASE_URL=https://ngwbwanpamfqoaitofih.supabase.co
-VITE_SUPABASE_ANON_KEY=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im5nd2J3YW5wYW1mcW9haXRvZmloIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjE1MDMzNDgsImV4cCI6MjA3NzA3OTM0OH0.6kifg9e7LDp2uacxSCsDKSEdFcdpMPzFen1oMgS3iuI
+VITE_SUPABASE_URL=https://YOUR_PROJECT.supabase.co
+VITE_SUPABASE_ANON_KEY=YOUR_SUPABASE_ANON_KEY
 EOF
 
 # 3. Start the app

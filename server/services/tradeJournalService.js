@@ -81,14 +81,25 @@ class TradeJournalService {
      * Analyze trading patterns and mistakes
      */
     async analyzePerformance(portfolioId, timeframe = '30d') {
+        const ALLOWED_TIMEFRAMES = {
+            '7d': 7,
+            '30d': 30,
+            '90d': 90,
+            '365d': 365
+        };
+        const days = ALLOWED_TIMEFRAMES[timeframe];
+        if (!days) {
+            throw new Error('Invalid timeframe');
+        }
+
         const trades = await query(
             `SELECT t.*, tj.*
        FROM trades t
        LEFT JOIN trade_journal tj ON t.id = tj.trade_id
        WHERE t.portfolio_id = $1
-       AND t.execution_time >= NOW() - INTERVAL '${timeframe}'
+       AND t.execution_time >= NOW() - make_interval(days => $2)
        ORDER BY t.execution_time DESC`,
-            [portfolioId]
+            [portfolioId, days]
         );
 
         // Calculate win/loss patterns

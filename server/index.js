@@ -19,6 +19,45 @@ app.use(cors({
 }));
 app.use(express.json());
 
+// Security headers
+const securityHeaders = (req, res, next) => {
+    res.setHeader('X-Content-Type-Options', 'nosniff');
+    res.setHeader('X-Frame-Options', 'SAMEORIGIN');
+    res.setHeader('Referrer-Policy', 'strict-origin-when-cross-origin');
+    if (process.env.NODE_ENV === 'production' && (req.secure || req.headers['x-forwarded-proto'] === 'https')) {
+        res.setHeader('Strict-Transport-Security', 'max-age=31536000; includeSubDomains');
+    }
+    next();
+};
+app.use(securityHeaders);
+
+// Simple in-memory per-IP rate limiter for API routes
+const RATE_LIMIT_WINDOW_MS = 15 * 60 * 1000;
+const RATE_LIMIT_MAX = 300;
+const rateLimitHits = new Map();
+const apiRateLimiter = (req, res, next) => {
+    const now = Date.now();
+    const key = req.ip;
+    let entry = rateLimitHits.get(key);
+    if (!entry || now - entry.start >= RATE_LIMIT_WINDOW_MS) {
+        entry = { start: now, count: 0 };
+        rateLimitHits.set(key, entry);
+    }
+    entry.count++;
+    if (entry.count > RATE_LIMIT_MAX) {
+        res.setHeader('Retry-After', Math.ceil((entry.start + RATE_LIMIT_WINDOW_MS - now) / 1000));
+        return res.status(429).json({ error: 'Too many requests, please try again later.' });
+    }
+    next();
+};
+setInterval(() => {
+    const now = Date.now();
+    for (const [key, entry] of rateLimitHits) {
+        if (now - entry.start >= RATE_LIMIT_WINDOW_MS) rateLimitHits.delete(key);
+    }
+}, RATE_LIMIT_WINDOW_MS).unref();
+app.use('/api/', apiRateLimiter);
+
 // Initialize Alpaca SDK
 let alpaca = null;
 let dataStream = null;

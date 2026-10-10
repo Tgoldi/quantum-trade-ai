@@ -1,8 +1,8 @@
 # 🎉 **SUPABASE PROJECT CREATED!**
 
 ## ✅ **Your Project Details**
-- **Project URL**: https://ngwbwanpamfqoaitofih.supabase.co
-- **Project ID**: ngwbwanpamfqoaitofih
+- **Project URL**: https://<your-project-ref>.supabase.co
+- **Project ID**: <your-project-ref>
 - **Status**: ✅ Ready for schema import
 
 ---
@@ -11,7 +11,7 @@
 
 ### **Step 1: Import Database Schema**
 1. Go to [Supabase Dashboard](https://supabase.com/dashboard)
-2. Click on your project: **ngwbwanpamfqoaitofih**
+2. Click on your project: **<your-project-ref>**
 3. Go to **SQL Editor** (left sidebar)
 4. Click **"New query"**
 5. Copy the entire contents of `supabase-schema.sql`
@@ -37,8 +37,8 @@
 ### **Step 3: Set Environment Variables**
 Create `.env.local` file in your project root:
 ```bash
-VITE_SUPABASE_URL=https://ngwbwanpamfqoaitofih.supabase.co
-VITE_SUPABASE_ANON_KEY=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im5nd2J3YW5wYW1mcW9haXRvZmloIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjE1MDMzNDgsImV4cCI6MjA3NzA3OTM0OH0.6kifg9e7LDp2uacxSCsDKSEdFcdpMPzFen1oMgS3iuI
+VITE_SUPABASE_URL=https://<your-project-ref>.supabase.co
+VITE_SUPABASE_ANON_KEY=<your-supabase-anon-key>
 ```
 
 ### **Step 4: Test the System**
