@@ -70,19 +70,18 @@ Create `.env` in the project root:
 
 ```bash
 cat > .env << 'EOF'
-# Database (already configured in docker-compose)
-DB_HOST=postgres
-DB_PORT=5432
-DB_NAME=quantumtrade
-DB_USER=postgres
-DB_PASSWORD=postgres
+# Database (service host/port are set in docker-compose)
+# Generate a unique, strong password first: openssl rand -hex 32
+# Never reuse a default or example password.
+POSTGRES_USER=quantumtrade_app
+POSTGRES_PASSWORD=<paste-generated-password-here>
 
-# Redis (already configured)
+# Redis (internal to the Docker network only - do not publish port 6379 to the host)
 REDIS_HOST=redis
 REDIS_PORT=6379
 
-# JWT Secret (generate a random string)
-JWT_SECRET=your-super-secret-jwt-key-change-this-in-production
+# JWT Secret - generate with: openssl rand -hex 64
+JWT_SECRET=<paste-generated-secret-here>
 
 # Interactive Brokers (optional - for live trading)
 IB_HOST=127.0.0.1
@@ -96,6 +95,11 @@ EOF
 
 **What this does:** Configures environment variables for the backend services.
 
+**Security notes:**
+- Replace every `<paste-generated-...>` placeholder with a freshly generated random value (e.g. `openssl rand -hex 32`). Do not commit `.env` to version control.
+- The database and Redis are only needed by the backend inside the Docker network. Remove the `5432:5432` and `6379:6379` host port mappings from `docker-compose-full.yml` (or bind them to `127.0.0.1`) so they are not exposed to your network.
+- If you need Redis authentication, set a strong `requirepass` generated the same way.
+
 ### Step 2: Start Docker Containers
 From the project root:
 
@@ -104,8 +108,8 @@ docker-compose -f docker-compose-full.yml up -d
 ```
 
 **What this does:** Starts 5 containers:
-- **PostgreSQL** (port 5432) - Database with TimescaleDB
-- **Redis** (port 6379) - Caching layer
+- **PostgreSQL** (internal port 5432) - Database with TimescaleDB
+- **Redis** (internal port 6379) - Caching layer
 - **Backend** (port 3001) - Node.js API server
 - **Frontend** (port 5173) - React app
 - **Nginx** (port 80) - Reverse proxy

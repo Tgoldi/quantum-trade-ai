@@ -217,8 +217,37 @@ class InteractiveBrokersBroker extends BaseBroker {
 
         this.validateOrder(order);
 
+        // Server-side sanity checks on quantity and limit price
+        const quantity = Number(order.quantity);
+        if (!Number.isFinite(quantity) || quantity <= 0) {
+            throw new Error('Order quantity must be a positive finite number');
+        }
+        const maxOrderQuantity = Number(this.config && this.config.maxOrderQuantity) || 10000;
+        if (quantity > maxOrderQuantity) {
+            throw new Error(`Order quantity ${quantity} exceeds maximum allowed ${maxOrderQuantity}`);
+        }
+        if (order.limitPrice !== undefined && order.limitPrice !== null) {
+            const limitPrice = Number(order.limitPrice);
+            if (!Number.isFinite(limitPrice) || limitPrice <= 0) {
+                throw new Error('Limit price must be a positive finite number');
+            }
+        }
+        const maxOrderNotional = Number(this.config && this.config.maxOrderNotional) || 0;
+        if (maxOrderNotional > 0 && order.limitPrice && quantity * Number(order.limitPrice) > maxOrderNotional) {
+            throw new Error(`Order notional exceeds maximum allowed ${maxOrderNotional}`);
+        }
+
         return new Promise((resolve, reject) => {
             const orderId = this.nextOrderId++;
+            let timeoutHandle = null;
+            const settle = (fn, value) => {
+                // Single point of completion: guarantees the callback and timeout
+                // cannot both act on the same order
+                if (!this.orderCallbacks.has(orderId)) return;
+                this.orderCallbacks.delete(orderId);
+                if (timeoutHandle) clearTimeout(timeoutHandle);
+                fn(value);
+            };
 
             // Create IB contract
             const contract = {
@@ -232,7 +261,7 @@ class InteractiveBrokersBroker extends BaseBroker {
             const ibOrder = {
                 orderId: orderId,
                 action: order.side.toLowerCase() === 'buy' ? OrderAction.BUY : OrderAction.SELL,
-                totalQuantity: order.quantity,
+                totalQuantity: quantity,
                 orderType: order.orderType.toUpperCase() === 'MARKET' ? OrderType.MKT : OrderType.LMT,
                 tif: TimeInForce.DAY
             };
@@ -244,7 +273,7 @@ class InteractiveBrokersBroker extends BaseBroker {
             // Set up callback for order status
             this.orderCallbacks.set(orderId, (status) => {
                 if (status.status === 'Filled') {
-                    resolve(this.normalizeOrder({
+                    settle(resolve, this.normalizeOrder({
                         id: orderId.toString(),
                         symbol: order.symbol,
                         side: order.side,
@@ -254,23 +283,22 @@ class InteractiveBrokersBroker extends BaseBroker {
                         status: 'filled',
                         order_type: order.orderType
                     }));
-                    this.orderCallbacks.delete(orderId);
                 } else if (status.status === 'Cancelled' || status.status === 'Rejected') {
-                    reject(new Error(`Order ${status.status}: ${orderId}`));
-                    this.orderCallbacks.delete(orderId);
+                    settle(reject, new Error(`Order ${status.status}: ${orderId}`));
                 }
             });
 
-            // Place order
-            this.api.placeOrder(orderId, contract, ibOrder);
-
-            // Timeout after 30 seconds
-            setTimeout(() => {
-                if (this.orderCallbacks.has(orderId)) {
-                    this.orderCallbacks.delete(orderId);
-                    reject(new Error('Order placement timeout'));
-                }
+            // Timeout after 30 seconds (registered before placing the order)
+            timeoutHandle = setTimeout(() => {
+                settle(reject, new Error('Order placement timeout'));
             }, 30000);
+
+            // Place order
+            try {
+                this.api.placeOrder(orderId, contract, ibOrder);
+            } catch (err) {
+                settle(reject, err);
+            }
         });
     }
 

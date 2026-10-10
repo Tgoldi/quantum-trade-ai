@@ -319,7 +319,13 @@ class MonitoringService {
      * Get system logs
      */
     async getSystemLogs(filters = {}) {
-        const { level, component, startDate, endDate, limit = 100 } = filters;
+        const { level, component, startDate, endDate } = filters;
+        const MAX_LOG_LIMIT = 500;
+        const DEFAULT_LOG_LIMIT = 100;
+        const parsedLimit = parseInt(filters.limit, 10);
+        const limit = Number.isFinite(parsedLimit) && parsedLimit > 0
+            ? Math.min(parsedLimit, MAX_LOG_LIMIT)
+            : DEFAULT_LOG_LIMIT;
 
         let whereClauses = [];
         let params = [];

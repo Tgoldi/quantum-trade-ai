@@ -86,21 +86,26 @@ EOF
 ### Option B: Full Stack (Docker with PostgreSQL/Redis)
 
 ```bash
-# Create backend environment file
-cat > server/.env << 'EOF'
+# Generate secrets in a separate step (the heredoc below is quoted, so
+# shell substitutions such as $(openssl ...) are NOT expanded inside it)
+JWT_SECRET_VALUE="$(openssl rand -base64 32)"
+DB_PASSWORD_VALUE="$(openssl rand -base64 24 | tr -d '/+=')"
+
+# Create backend environment file (unquoted heredoc so the variables above are expanded)
+cat > server/.env << EOF
 # Database Configuration
 DB_HOST=postgres
 DB_PORT=5432
 DB_NAME=quantumtrade
 DB_USER=postgres
-DB_PASSWORD=postgres_secure_password_change_this
+DB_PASSWORD=${DB_PASSWORD_VALUE}
 
 # Redis Configuration
 REDIS_HOST=redis
 REDIS_PORT=6379
 
-# JWT Secret (generate a secure random string)
-JWT_SECRET=$(openssl rand -base64 32)
+# JWT Secret
+JWT_SECRET=${JWT_SECRET_VALUE}
 
 # Node Environment
 NODE_ENV=production
@@ -111,7 +116,26 @@ PORT=3001
 # ALPACA_SECRET_KEY=your_secret_here
 # FINNHUB_API_KEY=your_key_here
 EOF
+
+# Restrict file permissions
+chmod 600 server/.env
+
+# Verify the secrets were actually generated and are NOT literal placeholder text
+grep -E '^(JWT_SECRET|DB_PASSWORD)=' server/.env
+# JWT_SECRET must NOT contain the text "$(openssl" and DB_PASSWORD must NOT be
+# "postgres_secure_password_change_this". If either is, re-run the steps above.
 ```
+
+> ⚠️ **The application must refuse to start if the default database password
+> (`postgres_secure_password_change_this`) or an unexpanded `JWT_SECRET`
+> placeholder is still in use.** Add a startup check in the server that exits
+> with an error in that case.
+>
+> 🚨 **If you already deployed using an earlier version of this guide**, your
+> `JWT_SECRET` may be the literal text `$(openssl rand -base64 32)` and your
+> database password the default value. Generate new secrets and change the
+> database password immediately, then restart all services (existing JWTs
+> will be invalidated).
 
 ---
 
@@ -157,10 +181,28 @@ docker ps
 docker-compose -f docker-compose-full.yml logs -f
 ```
 
-**Access:**
-- Frontend: `http://50.217.254.167:5173`
-- Backend API: `http://50.217.254.167:3001`
-- API Health: `http://50.217.254.167:3001/api/health`
+> ⚠️ **Do not publish PostgreSQL (5432) or Redis (6379) on the public IP.**
+> In your compose file, either omit the `ports:` mapping for `postgres` and
+> `redis` (containers reach each other over the internal Docker network via
+> `DB_HOST=postgres` / `REDIS_HOST=redis`), or bind them to loopback only:
+>
+> ```yaml
+> postgres:
+>   ports:
+>     - "127.0.0.1:5432:5432"
+> redis:
+>   ports:
+>     - "127.0.0.1:6379:6379"
+> ```
+>
+> Likewise bind the backend (`127.0.0.1:3001:3001`) and frontend ports to
+> loopback and serve them publicly only through the Nginx reverse proxy
+> (Step 7) with TLS.
+
+**Access (from the instance itself, or via the Nginx proxy in Step 7):**
+- Frontend: `http://localhost:5173`
+- Backend API: `http://localhost:3001`
+- API Health: `http://localhost:3001/api/health`
 
 ### Option C: Production Docker Setup
 
@@ -174,26 +216,33 @@ docker-compose -f docker-compose-production.yml up -d --build
 docker-compose -f docker-compose-production.yml ps
 ```
 
-**Access:**
-- Frontend: `http://50.217.254.167:8081`
-- Backend API: `http://50.217.254.167:3001`
+**Access (via the Nginx proxy in Step 7, or from the instance itself):**
+- Frontend: `http://localhost:8081`
+- Backend API: `http://localhost:3001`
 
 ---
 
 ## 🔒 Step 6: Configure Firewall (Important!)
 
-Vast.ai instances may have firewalls. Configure ports:
+Vast.ai instances may have firewalls. Only expose SSH and the reverse proxy
+publicly. Never open database/cache ports (5432, 6379) or the backend/admin
+port (3001) to the internet; all public traffic goes through Nginx.
 
 ```bash
-# Allow HTTP/HTTPS
+# Default policy: deny all inbound, allow outbound
+ufw default deny incoming
+ufw default allow outgoing
+
+# Allow SSH (use the SSH port of your instance, e.g. 41221 on Vast.ai)
+ufw allow 41221/tcp
+
+# Allow HTTP/HTTPS (Nginx reverse proxy only)
 ufw allow 80/tcp
 ufw allow 443/tcp
 
-# Allow application ports
-ufw allow 3000/tcp  # Frontend (if using serve)
-ufw allow 3001/tcp  # Backend API
-ufw allow 5173/tcp  # Frontend (if using Docker)
-ufw allow 8081/tcp  # Frontend (production)
+# Do NOT allow 3000, 3001, 5173, 8081, 5432 or 6379 publicly.
+# Application services must listen on 127.0.0.1 / the internal Docker network
+# and be reached through Nginx.
 
 # Enable firewall
 ufw enable
@@ -201,6 +250,10 @@ ufw enable
 # Check status
 ufw status
 ```
+
+> Note: Docker-published ports can bypass UFW rules. Bind published ports to
+> `127.0.0.1` in your compose files (e.g. `"127.0.0.1:3001:3001"`) rather than
+> relying on UFW alone.
 
 ---
 
@@ -257,7 +310,8 @@ nginx -t
 systemctl reload nginx
 ```
 
-**Access:** `http://50.217.254.167` (port 80)
+**Access:** `http://50.217.254.167` (port 80). Set up TLS (e.g. Let's Encrypt via
+`certbot --nginx`) and serve over HTTPS (port 443) for production.
 
 ---
 
@@ -314,11 +368,11 @@ docker ps
 ### Test from Your Local Machine
 
 ```bash
-# Test backend health
-curl http://50.217.254.167:3001/api/health
+# Test via the Nginx reverse proxy (backend 3001 / frontend 3000 are not public)
+curl http://50.217.254.167/api/health
 
 # Test frontend
-curl http://50.217.254.167:3000
+curl http://50.217.254.167/
 ```
 
 ---
@@ -431,7 +485,7 @@ docker logs quantumtrade-redis
 
 1. **Change Default Passwords**: Update all default passwords in `.env` files
 2. **Use SSL/HTTPS**: Set up Let's Encrypt for HTTPS
-3. **Firewall**: Only open necessary ports
+3. **Firewall**: Only open necessary ports (SSH, 80, 443). Never expose 5432, 6379 or 3001 publicly
 4. **SSH Keys**: Use SSH keys instead of passwords
 5. **Regular Updates**: Keep system and dependencies updated
 
@@ -442,8 +496,8 @@ docker logs quantumtrade-redis
 ### Important URLs
 - **Repository**: https://github.com/Tgoldi/quantum-trade-ai
 - **Instance IP**: 50.217.254.167
-- **Frontend**: http://50.217.254.167:3000 (or configured port)
-- **Backend**: http://50.217.254.167:3001
+- **Frontend**: http://50.217.254.167 (via Nginx; the app port itself is localhost-only)
+- **Backend**: http://50.217.254.167/api/ (via Nginx; port 3001 is localhost-only)
 
 ### Common Commands
 
@@ -473,7 +527,7 @@ cd /opt/quantum-trade-ai && git pull && npm install && npm run build && pm2 rest
 
 Your Quantum Trade AI platform should now be running on your Vast.ai instance!
 
-Access it at: `http://50.217.254.167:3000` (or your configured port)
+Access it at: `http://50.217.254.167` (through the Nginx reverse proxy)
 
 ---
 

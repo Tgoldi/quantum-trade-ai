@@ -21,30 +21,34 @@ const BACKEND_URL = `http://localhost:${BACKEND_PORT}`;
 // Security middleware
 app.use(helmet());
 
-// Middleware to parse JSON
-app.use(express.json({ limit: '1mb' }));
-app.use(express.urlencoded({ extended: true }));
-
 // Proxy API requests to backend
+// NOTE: body parsers are intentionally NOT mounted before this route so the
+// raw request stream can be piped to the backend unchanged.
 app.use('/api', async (req, res) => {
     // Express strips /api from req.url, so we need to add it back
     const backendPath = `/api${req.url}`; // Add /api prefix back
     const targetUrl = `${BACKEND_URL}${backendPath}`;
     console.log(`[PROXY] ${req.method} ${req.url} -> ${targetUrl}`);
     
+    // Explicit allow-list of client headers to forward (everything else,
+    // including X-Forwarded-* and hop-by-hop headers, is dropped)
+    const ALLOWED_HEADERS = ['authorization', 'content-type', 'content-length', 'accept', 'accept-language', 'user-agent'];
+    const forwardHeaders = {};
+    for (const name of ALLOWED_HEADERS) {
+        if (req.headers[name] !== undefined) {
+            forwardHeaders[name] = req.headers[name];
+        }
+    }
+    // Set X-Forwarded-For from the actual socket address, not client-supplied values
+    forwardHeaders['x-forwarded-for'] = req.socket.remoteAddress || '';
+
     const options = {
         hostname: 'localhost',
         port: BACKEND_PORT,
         path: backendPath, // /api/health, /api/auth/register, etc.
         method: req.method,
-        headers: {
-            ...req.headers,
-            host: `localhost:${BACKEND_PORT}`,
-        }
+        headers: forwardHeaders
     };
-    
-    // Remove host header to avoid issues
-    delete options.headers['host'];
     
     const proxyReq = http.request(options, (proxyRes) => {
         // Copy CORS headers from backend response
@@ -58,16 +62,11 @@ app.use('/api', async (req, res) => {
         res.status(500).json({ error: 'Backend proxy error', message: err.message });
     });
     
-    // Forward request body for POST/PUT requests
-    if (req.body && Object.keys(req.body).length > 0) {
-        const bodyData = JSON.stringify(req.body);
-        proxyReq.setHeader('Content-Type', 'application/json');
-        proxyReq.setHeader('Content-Length', Buffer.byteLength(bodyData));
-        proxyReq.write(bodyData);
-    }
-    
-    // End the request
-    proxyReq.end();
+    // Stream the original request body through unchanged (any content type);
+    // the original content-length header matches the bytes being forwarded.
+    // Requests without a content-length use chunked encoding automatically.
+    req.on('error', () => proxyReq.destroy());
+    req.pipe(proxyReq);
 });
 
 // Serve frontend static files (must be before catch-all)

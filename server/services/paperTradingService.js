@@ -6,6 +6,7 @@ class PaperTradingService {
     constructor() {
         this.slippagePercent = 0.001; // 0.1% slippage
         this.commissionRate = 0.0; // Free for paper trading
+        this.maxOrderQuantity = 1000000; // Upper bound on shares per order
     }
 
     /**
@@ -20,6 +21,17 @@ class PaperTradingService {
             limitPrice = null,
             strategy = 'manual'
         } = order;
+
+        // Validate order inputs
+        if (side !== 'buy' && side !== 'sell') {
+            throw new Error("Invalid side: must be 'buy' or 'sell'");
+        }
+        if (typeof quantity !== 'number' || !Number.isFinite(quantity) || quantity <= 0) {
+            throw new Error('Invalid quantity: must be a finite number greater than zero');
+        }
+        if (quantity > this.maxOrderQuantity) {
+            throw new Error(`Invalid quantity: exceeds maximum order size of ${this.maxOrderQuantity}`);
+        }
 
         // Get current market price
         const currentPrice = await this.getCurrentPrice(symbol);
@@ -282,7 +294,8 @@ class PaperTradingService {
         const totalPositionValue = positions.reduce((sum, p) => sum + parseFloat(p.market_value || 0), 0);
         const totalValue = parseFloat(portfolio.current_balance) + totalPositionValue;
         const totalReturn = totalValue - parseFloat(portfolio.initial_balance);
-        const totalReturnPercent = (totalReturn / parseFloat(portfolio.initial_balance)) * 100;
+        const initialBalance = parseFloat(portfolio.initial_balance);
+        const totalReturnPercent = initialBalance ? (totalReturn / initialBalance) * 100 : 0;
 
         return {
             portfolioId,

@@ -19,6 +19,8 @@ import {
 } from "lucide-react";
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, BarChart, Bar } from 'recharts';
 
+const API_BASE_URL = import.meta.env.VITE_API_URL;
+
 const LLMMonitor = () => {
     const [llmData, setLlmData] = useState([]);
     const [performanceMetrics, setPerformanceMetrics] = useState([]);
@@ -53,7 +55,7 @@ const LLMMonitor = () => {
     const loadLLMData = async () => {
         try {
             console.log('📡 Fetching real LLM data from server...');
-            const response = await fetch('http://localhost:3001/api/llm/models');
+            const response = await fetch(`${API_BASE_URL}/api/llm/models`);
             if (response.ok) {
                 const data = await response.json();
                 setLlmData(data);
@@ -75,7 +77,7 @@ const LLMMonitor = () => {
     // Load real performance metrics from server
     const loadPerformanceMetrics = async () => {
         try {
-            const response = await fetch('http://localhost:3001/api/llm/metrics');
+            const response = await fetch(`${API_BASE_URL}/api/llm/metrics`);
             if (response.ok) {
                 const metricsData = await response.json();
                 setPerformanceMetrics(metricsData.historical || []);
@@ -93,7 +95,7 @@ const LLMMonitor = () => {
     // Fetch real-time system health
     const fetchLiveSystemHealth = async () => {
         try {
-            const response = await fetch('http://localhost:3001/api/llm/health');
+            const response = await fetch(`${API_BASE_URL}/api/llm/health`);
             if (response.ok) {
                 const healthData = await response.json();
                 setSystemHealth(healthData);
@@ -111,7 +113,7 @@ const LLMMonitor = () => {
     // Update real-time metrics from server only
     const updateRealTimeMetrics = async () => {
         try {
-            const response = await fetch('http://localhost:3001/api/llm/metrics');
+            const response = await fetch(`${API_BASE_URL}/api/llm/metrics`);
             if (response.ok) {
                 const metricsData = await response.json();
                 setRealTimeData(metricsData.realtime || []);
@@ -153,7 +155,7 @@ const LLMMonitor = () => {
         try {
             console.log(`🧪 Testing investment decision for ${testSymbol}...`);
 
-            const response = await fetch('http://localhost:3001/api/ai/analyze', {
+            const response = await fetch(`${API_BASE_URL}/api/ai/analyze`, {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',

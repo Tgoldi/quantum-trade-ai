@@ -85,9 +85,10 @@ You should see:
 
 ### Test 1: Get Real-Time Price
 ```bash
+# Set TEST_EMAIL and TEST_PASSWORD in your shell environment (never commit real credentials)
 TOKEN=$(curl -s -X POST http://localhost:3001/api/auth/login \
   -H "Content-Type: application/json" \
-  -d '{"emailOrUsername":"tomerg.work@gmail.com","password":"Tomergold1!"}' | jq -r '.tokens.accessToken')
+  -d "{\"emailOrUsername\":\"$TEST_EMAIL\",\"password\":\"$TEST_PASSWORD\"}" | jq -r '.tokens.accessToken')
 
 curl -s http://localhost:3001/api/market/price/AAPL \
   -H "Authorization: Bearer $TOKEN" | jq .

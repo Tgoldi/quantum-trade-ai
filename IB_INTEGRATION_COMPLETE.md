@@ -15,7 +15,7 @@
 - **Source**: Interactive Brokers → AI Models
 
 ### ✅ **3. Your IB Account Data**
-- **Account ID**: `U23156969` (your IB paper trading account)
+- **Account ID**: Your IB paper trading account ID
 - **Portfolio Value**: Read directly from IB
 - **Cash Balance**: From IB account
 - **Buying Power**: From IB account
@@ -41,7 +41,7 @@
 ┌─────────────────────────────────────────────────────────┐
 │                  IB GATEWAY (Port 7497)                  │
 │                 Paper Trading Account                    │
-│                    ID: U23156969                         │
+│                ID: <YOUR_IB_ACCOUNT_ID>                  │
 └────────────────────┬────────────────────────────────────┘
                      │
                      │ WebSocket Connection
@@ -77,7 +77,7 @@
 ### Your IB Paper Trading Account:
 ```json
 {
-  "account_id": "U23156969",
+  "account_id": "<YOUR_IB_ACCOUNT_ID>",
   "portfolio_value": "$0.00",
   "cash": "$0.00",
   "buying_power": "$0.00",
@@ -119,7 +119,7 @@ const ibPortfolio = await getPortfolioSummary();
 
 // 2. If IB has data, use it
 if (ibPortfolio.source === 'interactive_brokers') {
-  // Show real IB account: U23156969
+  // Show real IB account
   display(ibPortfolio);
 }
 
@@ -132,7 +132,7 @@ else {
 
 ### Right Now:
 - ✅ **IB Connected**: Yes
-- ✅ **Reading IB Account**: Yes (U23156969)
+- ✅ **Reading IB Account**: Yes
 - ⚠️ **IB Has Data**: No (account is empty)
 - 📊 **Dashboard Shows**: Local database backup (3 demo positions)
 
@@ -150,9 +150,9 @@ Once you fund the account:
 ```bash
 TOKEN=$(curl -s -X POST http://localhost:3001/api/auth/login \
   -H "Content-Type: application/json" \
-  -d '{"emailOrUsername":"tomerg.work@gmail.com","password":"Tomergold1!"}' | jq -r '.tokens.accessToken')
+  -d "{\"emailOrUsername\":\"$QT_EMAIL\",\"password\":\"$QT_PASSWORD\"}" | jq -r '.tokens.accessToken')
 
-PORTFOLIO_ID="0f26dd9d-5d65-4e4d-a4ef-914aaadb4c0d"
+PORTFOLIO_ID="<YOUR_PORTFOLIO_ID>"
 
 curl -s -X POST http://localhost:3001/api/trade \
   -H "Authorization: Bearer $TOKEN" \
@@ -182,7 +182,7 @@ This will:
 | **Market Prices** | IB Gateway | ✅ Live |
 | **Market Movers** | IB Gateway | ✅ Live |
 | **AI Decisions** | IB Prices | ✅ Live |
-| **Account Balance** | IB Account U23156969 | ✅ Connected |
+| **Account Balance** | IB Account | ✅ Connected |
 | **Positions** | IB Positions | ✅ Connected |
 | **Portfolio Display** | IB (if available) → Local (backup) | ✅ Hybrid |
 | **Order Execution** | IB Gateway + Local DB | ✅ Hybrid |
@@ -215,7 +215,7 @@ This will:
 ## 🔑 **Key Points**
 
 1. **Everything reads from IB** when connected ✅
-2. **Your IB account ID**: `U23156969` ✅
+2. **Your IB account ID**: configured via environment ✅
 3. **Paper trading** (safe, no real money) ✅
 4. **IB account is empty** right now (fund it to see data)
 5. **Automatic fallback** to local if IB disconnects ✅
@@ -243,7 +243,7 @@ This will:
 
 Your QuantumTrade AI platform now:
 - ✅ **Reads all market data from IB**
-- ✅ **Reads your IB account (U23156969)**
+- ✅ **Reads your IB account**
 - ✅ **AI decisions based on IB prices**
 - ✅ **Dashboard shows IB data when available**
 - ✅ **Falls back gracefully if IB disconnects**

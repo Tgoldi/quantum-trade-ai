@@ -72,7 +72,17 @@ if (process.env.ALPACA_API_KEY && process.env.ALPACA_SECRET_KEY) {
 // WebSocket server for frontend communication
 const wss = new WebSocket.Server({ port: 8080 });
 
-wss.on('connection', (ws) => {
+// Trusted origins allowed to open a WebSocket connection (same as the CORS origin)
+const allowedOrigins = [process.env.FRONTEND_URL || 'https://yourdomain.com'];
+
+wss.on('connection', (ws, request) => {
+    const origin = request.headers.origin;
+    if (!allowedOrigins.includes(origin)) {
+        console.log(`🚫 Rejected WebSocket connection from untrusted origin: ${origin}`);
+        ws.close(1008, 'Origin not allowed');
+        return;
+    }
+
     console.log('📱 Frontend client connected');
 
     ws.on('close', () => {
