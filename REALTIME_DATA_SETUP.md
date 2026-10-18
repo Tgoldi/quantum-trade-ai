@@ -54,17 +54,21 @@ Your dashboard has been upgraded with real-time US stock market data! 🚀
    touch .env.local
    ```
 
-2. Add your Alpaca API keys to `.env.local`:
+2. Add your Alpaca API keys to `.env.local` (server-side only — do NOT use `REACT_APP_`, `VITE_` or `NEXT_PUBLIC_` prefixes, which would expose them to the browser):
    ```env
-   # Alpaca Markets API Keys (Primary)
-   REACT_APP_ALPACA_API_KEY=your_alpaca_api_key_here
-   REACT_APP_ALPACA_SECRET_KEY=your_alpaca_secret_key_here
-   REACT_APP_ALPACA_PAPER_TRADING=true
+   # Alpaca Markets API Keys (Primary) - server-side only
+   ALPACA_API_KEY=your_alpaca_api_key_here
+   ALPACA_SECRET_KEY=your_alpaca_secret_key_here
+   ALPACA_PAPER_TRADING=true
 
-   # Backup APIs (Optional)
-   REACT_APP_FINNHUB_API_KEY=your_finnhub_api_key_here
-   REACT_APP_ALPHA_VANTAGE_API_KEY=your_alpha_vantage_api_key_here
+   # Backup APIs (Optional) - server-side only
+   FINNHUB_API_KEY=your_finnhub_api_key_here
+   ALPHA_VANTAGE_API_KEY=your_alpha_vantage_api_key_here
    ```
+
+   These variables must be read only by your backend, which proxies all
+   Alpaca/Finnhub/Alpha Vantage requests. The browser should call your backend,
+   never the broker/data providers directly.
 
 3. Restart your development server:
    ```bash
@@ -143,9 +147,10 @@ For production use or higher limits:
 
 ## Security Notes
 
-⚠️ **Important**: API keys in `.env` are exposed in client-side React apps.
-- Free tier keys are generally safe to expose
-- For production, consider a backend proxy to hide API keys
+⚠️ **Important**: Never expose broker secret keys (e.g. `ALPACA_SECRET_KEY`) to the browser.
+- Any variable with a client-visible prefix (`REACT_APP_`, `VITE_`, `NEXT_PUBLIC_`) is bundled into client-side code and is public
+- Route all Alpaca and other provider calls through a backend proxy and keep keys server-side only
+- Alpaca keys can place orders on your account — treat them as secrets
 - Monitor your usage to prevent quota exhaustion
 
 ## Support

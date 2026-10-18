@@ -2,29 +2,32 @@
 
 ## 🎉 Your Quantum Trade AI Platform is Deployed!
 
-**Instance IP:** 50.217.254.167  
-**SSH Port:** 41221  
+**Instance IP:** `<INSTANCE_IP>`  
+**SSH Port:** `<SSH_PORT>`  
+**SSH User:** `<SSH_USER>` (use a non-root user; disable direct root SSH login)  
 **Application Port:** 3000
+
+> Real host, port and credential details are kept in private ops documentation, not in this repository.
 
 ---
 
 ## 🌐 Access Your Application
 
 ### Option 1: Direct Access (if port is open)
-- **Frontend:** http://50.217.254.167:3000
+- **Frontend:** http://<INSTANCE_IP>:3000
 
 ### Option 2: SSH Tunnel (Recommended)
 If port 3000 is not publicly accessible, create an SSH tunnel:
 
 ```bash
-ssh -p 41221 -i ~/.ssh/id_ed25519 -L 3000:localhost:3000 root@50.217.254.167
+ssh -p <SSH_PORT> -i ~/.ssh/id_ed25519 -L 3000:localhost:3000 <SSH_USER>@<INSTANCE_IP>
 ```
 
 Then access: **http://localhost:3000**
 
 ### Option 3: Vast.ai Port Forwarding
 1. Go to your Vast.ai dashboard
-2. Find your instance (50.217.254.167)
+2. Find your instance (<INSTANCE_IP>)
 3. Look for "Port Forwarding" or "Expose Port" settings
 4. Forward port 3000 to make it publicly accessible
 
@@ -35,7 +38,7 @@ Then access: **http://localhost:3000**
 Check if the service is running:
 
 ```bash
-ssh -p 41221 -i ~/.ssh/id_ed25519 root@50.217.254.167 "pm2 list"
+ssh -p <SSH_PORT> -i ~/.ssh/id_ed25519 <SSH_USER>@<INSTANCE_IP> "pm2 list"
 ```
 
 Expected output:
@@ -53,27 +56,27 @@ Expected output:
 
 ### View Logs
 ```bash
-ssh -p 41221 -i ~/.ssh/id_ed25519 root@50.217.254.167 "pm2 logs quantum-frontend"
+ssh -p <SSH_PORT> -i ~/.ssh/id_ed25519 <SSH_USER>@<INSTANCE_IP> "pm2 logs quantum-frontend"
 ```
 
 ### Restart Service
 ```bash
-ssh -p 41221 -i ~/.ssh/id_ed25519 root@50.217.254.167 "pm2 restart quantum-frontend"
+ssh -p <SSH_PORT> -i ~/.ssh/id_ed25519 <SSH_USER>@<INSTANCE_IP> "pm2 restart quantum-frontend"
 ```
 
 ### Stop Service
 ```bash
-ssh -p 41221 -i ~/.ssh/id_ed25519 root@50.217.254.167 "pm2 stop quantum-frontend"
+ssh -p <SSH_PORT> -i ~/.ssh/id_ed25519 <SSH_USER>@<INSTANCE_IP> "pm2 stop quantum-frontend"
 ```
 
 ### Check Port Status
 ```bash
-ssh -p 41221 -i ~/.ssh/id_ed25519 root@50.217.254.167 "netstat -tulpn | grep 3000"
+ssh -p <SSH_PORT> -i ~/.ssh/id_ed25519 <SSH_USER>@<INSTANCE_IP> "netstat -tulpn | grep 3000"
 ```
 
 ### Update Application
 ```bash
-ssh -p 41221 -i ~/.ssh/id_ed25519 root@50.217.254.167 "cd /opt/quantum-trade-ai && git pull && npm install && npm run build && pm2 restart quantum-frontend"
+ssh -p <SSH_PORT> -i ~/.ssh/id_ed25519 <SSH_USER>@<INSTANCE_IP> "cd <APP_DIR> && git pull && npm install && npm run build && pm2 restart quantum-frontend"
 ```
 
 ---
@@ -82,7 +85,7 @@ ssh -p 41221 -i ~/.ssh/id_ed25519 root@50.217.254.167 "cd /opt/quantum-trade-ai 
 
 The application is installed at:
 ```
-/opt/quantum-trade-ai
+<APP_DIR>
 ```
 
 ---
@@ -99,7 +102,7 @@ The application is installed at:
 
 ### Service Not Running?
 ```bash
-ssh -p 41221 -i ~/.ssh/id_ed25519 root@50.217.254.167 "pm2 restart quantum-frontend"
+ssh -p <SSH_PORT> -i ~/.ssh/id_ed25519 <SSH_USER>@<INSTANCE_IP> "pm2 restart quantum-frontend"
 ```
 
 ### Can't Access from Browser?
@@ -109,7 +112,7 @@ ssh -p 41221 -i ~/.ssh/id_ed25519 root@50.217.254.167 "pm2 restart quantum-front
 
 ### Need to Rebuild?
 ```bash
-ssh -p 41221 -i ~/.ssh/id_ed25519 root@50.217.254.167 "cd /opt/quantum-trade-ai && npm run build && pm2 restart quantum-frontend"
+ssh -p <SSH_PORT> -i ~/.ssh/id_ed25519 <SSH_USER>@<INSTANCE_IP> "cd <APP_DIR> && npm run build && pm2 restart quantum-frontend"
 ```
 
 ---

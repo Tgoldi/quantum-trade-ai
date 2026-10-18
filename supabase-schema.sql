@@ -328,9 +328,6 @@
     CREATE INDEX idx_sentiment_data_symbol ON public.sentiment_data(symbol);
     CREATE INDEX idx_system_logs_created_at ON public.system_logs(created_at);
 
-    -- Sample data (optional)
-    INSERT INTO public.users (id, email, username, first_name, last_name, subscription_tier)
-    VALUES 
-    (uuid_generate_v4(), 'demo@quantumtrade.ai', 'demo', 'Demo', 'User', 'free')
-    ON CONFLICT (email) DO NOTHING;
+    -- Sample/demo data intentionally omitted from the production schema.
+    -- Keep dev-only seeds in a separate script (users must be created via auth.users).
 

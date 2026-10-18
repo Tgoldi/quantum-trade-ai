@@ -3,6 +3,7 @@ const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 const { query, transaction, cache } = require('../database/db');
 const { v4: uuidv4 } = require('uuid');
+const crypto = require('crypto');
 
 class AuthService {
     constructor() {
@@ -186,6 +187,12 @@ class AuthService {
         try {
             const decoded = jwt.verify(token, this.jwtSecret);
 
+            // Refresh tokens must never be accepted as access tokens
+            // (generateTokens always sets type: 'access' on access tokens)
+            if (decoded.type !== 'access') {
+                throw new Error('Invalid token type');
+            }
+
             // Check if token is invalidated
             const invalidated = await cache.get(`tokens:invalidated:${decoded.userId}`);
             if (invalidated && invalidated > decoded.iat * 1000) {
@@ -218,6 +225,12 @@ class AuthService {
 
             if (decoded.type !== 'refresh') {
                 throw new Error('Invalid refresh token');
+            }
+
+            // Reject refresh tokens issued before logout / password change / reset
+            const invalidated = await cache.get(`tokens:invalidated:${decoded.userId}`);
+            if (invalidated && invalidated > decoded.iat * 1000) {
+                throw new Error('Refresh token has been invalidated');
             }
 
             // Check if user still exists and is active
@@ -394,7 +407,7 @@ class AuthService {
         }
 
         // Generate reset token
-        const resetToken = uuidv4();
+        const resetToken = crypto.randomBytes(32).toString('hex');
         await cache.set(`reset:${resetToken}`, {
             userId: user.id,
             email,

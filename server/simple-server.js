@@ -30,8 +30,15 @@ app.use('/api/', apiLimiter);
 // WebSocket server for real-time data streaming (mock data)
 const wss = new WebSocket.Server({ port: 8080 });
 const connectedClients = new Set();
+const allowedOrigins = [process.env.FRONTEND_URL || 'http://localhost:5173'];
 
-wss.on('connection', (ws) => {
+wss.on('connection', (ws, request) => {
+    const origin = request.headers.origin;
+    if (!origin || !allowedOrigins.includes(origin)) {
+        console.warn('Rejected WebSocket connection from origin:', origin);
+        ws.close(1008, 'Origin not allowed');
+        return;
+    }
     console.log('📱 Frontend client connected');
     connectedClients.add(ws);
 

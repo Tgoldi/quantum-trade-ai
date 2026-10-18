@@ -70,19 +70,21 @@ Create `.env` in the project root:
 
 ```bash
 cat > .env << 'EOF'
-# Database (already configured in docker-compose)
+# Database (REQUIRED - use a unique, strong password, e.g. generated with: openssl rand -hex 24;
+# never use default credentials such as "postgres" or "password")
 DB_HOST=postgres
 DB_PORT=5432
 DB_NAME=quantumtrade
-DB_USER=postgres
-DB_PASSWORD=postgres
+DB_USER=quantumtrade_app
+DB_PASSWORD=<generate-a-strong-password>
 
 # Redis (already configured)
 REDIS_HOST=redis
 REDIS_PORT=6379
 
-# JWT Secret (generate a random string)
-JWT_SECRET=your-super-secret-jwt-key-change-this-in-production
+# JWT Secret (REQUIRED - generate with: openssl rand -hex 64)
+# The backend must refuse to start if this is empty or left as a placeholder.
+JWT_SECRET=<generate-with-openssl-rand-hex-64>
 
 # Interactive Brokers (optional - for live trading)
 IB_HOST=127.0.0.1

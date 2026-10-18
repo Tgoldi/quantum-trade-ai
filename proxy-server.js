@@ -21,10 +21,6 @@ const BACKEND_URL = `http://localhost:${BACKEND_PORT}`;
 // Security middleware
 app.use(helmet());
 
-// Middleware to parse JSON
-app.use(express.json({ limit: '1mb' }));
-app.use(express.urlencoded({ extended: true }));
-
 // Proxy API requests to backend
 app.use('/api', async (req, res) => {
     // Express strips /api from req.url, so we need to add it back
@@ -39,12 +35,19 @@ app.use('/api', async (req, res) => {
         method: req.method,
         headers: {
             ...req.headers,
-            host: `localhost:${BACKEND_PORT}`,
         }
     };
     
     // Remove host header to avoid issues
     delete options.headers['host'];
+
+    // Strip client-supplied forwarding headers (spoofable) and set trusted values
+    delete options.headers['x-forwarded-for'];
+    delete options.headers['x-forwarded-host'];
+    delete options.headers['x-forwarded-proto'];
+    delete options.headers['x-real-ip'];
+    delete options.headers['forwarded'];
+    options.headers['x-forwarded-for'] = req.socket.remoteAddress;
     
     const proxyReq = http.request(options, (proxyRes) => {
         // Copy CORS headers from backend response
@@ -55,19 +58,15 @@ app.use('/api', async (req, res) => {
     
     proxyReq.on('error', (err) => {
         console.error('[PROXY ERROR]', err.message);
-        res.status(500).json({ error: 'Backend proxy error', message: err.message });
+        if (!res.headersSent) {
+            res.status(500).json({ error: 'Something went wrong' });
+        } else {
+            res.end();
+        }
     });
     
-    // Forward request body for POST/PUT requests
-    if (req.body && Object.keys(req.body).length > 0) {
-        const bodyData = JSON.stringify(req.body);
-        proxyReq.setHeader('Content-Type', 'application/json');
-        proxyReq.setHeader('Content-Length', Buffer.byteLength(bodyData));
-        proxyReq.write(bodyData);
-    }
-    
-    // End the request
-    proxyReq.end();
+    // Stream the request body unchanged to the backend
+    req.pipe(proxyReq);
 });
 
 // Serve frontend static files (must be before catch-all)
@@ -87,10 +86,45 @@ app.use((req, res, next) => {
 const server = createServer(app);
 
 // WebSocket proxy for /ws endpoint
-const wss = new WebSocketServer({ server, path: '/ws' });
+const MAX_WS_PER_IP = 10;
+const wsConnectionsPerIp = new Map();
+
+const wss = new WebSocketServer({
+    server,
+    path: '/ws',
+    maxPayload: 1024 * 1024,
+    verifyClient: (info) => {
+        const origin = info.origin;
+        // Browsers always send Origin; require it to match the Host serving this proxy
+        if (origin) {
+            try {
+                if (new URL(origin).host !== info.req.headers.host) {
+                    return false;
+                }
+            } catch (e) {
+                return false;
+            }
+        }
+        const ip = info.req.socket.remoteAddress;
+        if ((wsConnectionsPerIp.get(ip) || 0) >= MAX_WS_PER_IP) {
+            return false;
+        }
+        return true;
+    }
+});
 
 wss.on('connection', (clientWs, req) => {
     console.log('[WS PROXY] Client connected');
+    const clientIp = req.socket.remoteAddress;
+    wsConnectionsPerIp.set(clientIp, (wsConnectionsPerIp.get(clientIp) || 0) + 1);
+    clientWs.on('close', () => {
+        const n = (wsConnectionsPerIp.get(clientIp) || 1) - 1;
+        if (n <= 0) {
+            wsConnectionsPerIp.delete(clientIp);
+        } else {
+            wsConnectionsPerIp.set(clientIp, n);
+        }
+    });
     
     // Connect to backend WebSocket
     const backendWs = new WebSocket(`ws://localhost:${BACKEND_PORT}/ws`);

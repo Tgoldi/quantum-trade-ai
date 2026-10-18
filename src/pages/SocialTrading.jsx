@@ -42,7 +42,6 @@ const SocialPostCard = ({ post, index }) => {
         <CardContent className="p-6">
           <div className="flex items-start gap-4 mb-4">
             <Avatar className="w-10 h-10 border-2 border-slate-700">
-              <AvatarImage src={`https://i.pravatar.cc/100?u=${post.author}`} />
               <AvatarFallback className="bg-slate-800 text-white">
                 {post.author.substring(0, 2).toUpperCase()}
               </AvatarFallback>
@@ -125,7 +124,6 @@ const InfluencerCard = ({ influencer, index }) => {
         <CardContent className="p-6">
           <div className="flex items-center gap-4 mb-4">
             <Avatar className="w-12 h-12 border-2 border-slate-700">
-              <AvatarImage src={`https://i.pravatar.cc/100?u=${influencer.influencer_name}`} />
               <AvatarFallback className="bg-slate-800 text-white">
                 {influencer.influencer_name.substring(0, 2).toUpperCase()}
               </AvatarFallback>

@@ -37,7 +37,7 @@
 
 ## 📋 How to Fund Your IB Paper Account
 
-Your IB paper trading account **U23156969** needs virtual money to trade. Here's how:
+Your IB paper trading account **<IB_ACCOUNT_ID>** needs virtual money to trade. Here's how:
 
 ### Method 1: Via IB Gateway (Recommended)
 
@@ -49,7 +49,7 @@ Your IB paper trading account **U23156969** needs virtual money to trade. Here's
    - Or go to: https://www.interactivebrokers.com/portal
 
 3. **Select Paper Trading Account**:
-   - Find account **U23156969**
+   - Find account **<IB_ACCOUNT_ID>**
    - Or look for "Paper Trading" section
 
 4. **Reset/Fund Account**:
@@ -81,7 +81,7 @@ If you're using TWS instead of IB Gateway:
 1. Go to: https://www.interactivebrokers.com/portal
 2. Login to **Client Portal**
 3. Navigate to **Account Settings → Paper Trading**
-4. Find account **U23156969**
+4. Find account **<IB_ACCOUNT_ID>**
 5. Click **"Reset Account"** or **"Add Funds"**
 
 ---
@@ -93,7 +93,7 @@ Once you fund the account, test it:
 ```bash
 TOKEN=$(curl -s -X POST http://localhost:3001/api/auth/login \
   -H "Content-Type: application/json" \
-  -d '{"emailOrUsername":"tomerg.work@gmail.com","password":"Tomergold1!"}' | jq -r '.tokens.accessToken')
+  -d "{\"emailOrUsername\":\"$APP_EMAIL\",\"password\":\"$APP_PASSWORD\"}" | jq -r '.tokens.accessToken')
 
 # Check IB account
 curl -s http://localhost:3001/api/ib/account \
@@ -101,7 +101,7 @@ curl -s http://localhost:3001/api/ib/account \
 
 # Expected result:
 # {
-#   "id": "U23156969",
+#   "id": "<IB_ACCOUNT_ID>",
 #   "portfolio_value": 100000,
 #   "cash": 100000,
 #   "buying_power": 400000,  # 4x leverage for stocks
@@ -173,7 +173,7 @@ This will:
 ```
 IB Gateway (Port 7497)
   ↓
-IB Account: U23156969
+IB Account: <IB_ACCOUNT_ID>
   ↓
 Backend API
   ↓
@@ -240,7 +240,7 @@ curl -s http://localhost:3001/api/portfolio/ib-live \
 |------|--------|
 | **Alpaca Connection** | ❌ Removed |
 | **IB Connection** | ✅ Active |
-| **IB Account ID** | U23156969 |
+| **IB Account ID** | <IB_ACCOUNT_ID> |
 | **Account Balance** | $0 → Need to fund |
 | **Market Data** | ✅ IB Only |
 | **AI Decisions** | ✅ Using IB Data |
@@ -266,7 +266,7 @@ curl -s http://localhost:3001/api/portfolio/ib-live \
 
 ## ✅ Next Steps
 
-1. **Fund your IB paper account** (U23156969) with $100,000
+1. **Fund your IB paper account** (<IB_ACCOUNT_ID>) with $100,000
 2. **Refresh dashboard** - you'll see the balance
 3. **Let AI make decisions** based on your real IB account
 4. **Place paper trades** through the dashboard

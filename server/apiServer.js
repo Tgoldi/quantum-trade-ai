@@ -488,10 +488,22 @@ app.post('/api/ai/decision/execute', authenticate, async (req, res) => {
     try {
         const { decisionId, portfolioId } = req.body;
 
-        // Get decision
+        // Verify the target portfolio belongs to the authenticated user
+        const [ownedPortfolio] = await query(
+            'SELECT id FROM portfolios WHERE id = $1 AND user_id = $2',
+            [portfolioId, req.user.userId]
+        );
+
+        if (!ownedPortfolio) {
+            return res.status(404).json({ error: 'Portfolio not found' });
+        }
+
+        // Get decision, scoped to the caller's portfolio
         const [decision] = await query(
-            'SELECT * FROM ai_decisions WHERE id = $1',
-            [decisionId]
+            `SELECT d.* FROM ai_decisions d
+             JOIN portfolios p ON p.id = d.portfolio_id
+             WHERE d.id = $1 AND d.portfolio_id = $2 AND p.user_id = $3`,
+            [decisionId, portfolioId, req.user.userId]
         );
 
         if (!decision) {

@@ -210,10 +210,19 @@ export default function Watchlists() {
     setLoading(false);
   };
 
+  // NOTE: Watchlists are client-side mock data only. No persistence layer exists;
+  // a server endpoint enforcing per-user ownership is required before persisting.
   const handleCreateWatchlist = async (watchlistData) => {
     try {
-      await Watchlist.create(watchlistData);
-      loadWatchlists();
+      setWatchlists(prev => [
+        ...prev,
+        {
+          ...watchlistData,
+          id: Date.now(),
+          created_date: new Date().toISOString(),
+          stocks: []
+        }
+      ]);
     } catch (error) {
       console.error("Error creating watchlist:", error);
     }
@@ -223,10 +232,9 @@ export default function Watchlists() {
     try {
       const watchlist = watchlists.find(w => w.id === watchlistId);
       if (watchlist && !watchlist.symbols.includes(symbol)) {
-        await Watchlist.update(watchlistId, {
-          symbols: [...watchlist.symbols, symbol]
-        });
-        loadWatchlists();
+        setWatchlists(prev => prev.map(w =>
+          w.id === watchlistId ? { ...w, symbols: [...w.symbols, symbol] } : w
+        ));
       }
     } catch (error) {
       console.error("Error adding stock:", error);
@@ -237,10 +245,9 @@ export default function Watchlists() {
     try {
       const watchlist = watchlists.find(w => w.id === watchlistId);
       if (watchlist) {
-        await Watchlist.update(watchlistId, {
-          symbols: watchlist.symbols.filter(s => s !== symbol)
-        });
-        loadWatchlists();
+        setWatchlists(prev => prev.map(w =>
+          w.id === watchlistId ? { ...w, symbols: w.symbols.filter(s => s !== symbol) } : w
+        ));
       }
     } catch (error) {
       console.error("Error removing stock:", error);

@@ -12,6 +12,18 @@ require('dotenv').config();
 const app = express();
 const PORT = process.env.PORT || 3001;
 
+// Security headers
+const securityHeaders = (req, res, next) => {
+    res.setHeader('X-Content-Type-Options', 'nosniff');
+    res.setHeader('X-Frame-Options', 'SAMEORIGIN');
+    res.setHeader('Referrer-Policy', 'strict-origin-when-cross-origin');
+    if (process.env.NODE_ENV === 'production') {
+        res.setHeader('Strict-Transport-Security', 'max-age=31536000; includeSubDomains');
+    }
+    next();
+};
+app.use(securityHeaders);
+
 // Middleware
 app.use(cors({
     origin: process.env.FRONTEND_URL || 'http://localhost:5173',
@@ -49,7 +61,15 @@ const connectedClients = new Set();
 // Store real-time data
 const realtimeData = new Map();
 
-wss.on('connection', (ws) => {
+const allowedWsOrigins = [process.env.FRONTEND_URL || 'http://localhost:5173'];
+
+wss.on('connection', (ws, request) => {
+    const origin = request.headers.origin;
+    if (!origin || !allowedWsOrigins.includes(origin)) {
+        console.warn('Rejected WebSocket connection from origin:', origin);
+        ws.close(1008, 'Origin not allowed');
+        return;
+    }
     console.log('📱 Frontend client connected');
     connectedClients.add(ws);
 

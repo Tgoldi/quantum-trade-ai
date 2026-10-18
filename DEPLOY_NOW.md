@@ -17,16 +17,23 @@ ssh -p 41221 root@50.217.254.167
 
 ### Step 2: Run the Deployment Script
 
-Once connected, run this command:
+Download the script pinned to a specific release/commit, inspect it, verify its checksum, and only then run it (do not pipe it straight into bash as root).
+
+Set `COMMIT_SHA` to the reviewed commit (or tag) and `EXPECTED_SHA256` to the published checksum:
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/Tgoldi/quantum-trade-ai/main/quick-deploy-vast.sh | bash
+COMMIT_SHA="<reviewed-commit-sha-or-tag>"
+EXPECTED_SHA256="<published-sha256-checksum>"
+curl -fsSLO "https://raw.githubusercontent.com/Tgoldi/quantum-trade-ai/${COMMIT_SHA}/quick-deploy-vast.sh"
+less quick-deploy-vast.sh
+echo "${EXPECTED_SHA256}  quick-deploy-vast.sh" | sha256sum -c -
+chmod +x quick-deploy-vast.sh && ./quick-deploy-vast.sh
 ```
 
-**OR** if you prefer to clone and run manually:
+**OR** clone at a pinned commit and run manually:
 
 ```bash
-cd /opt && git clone https://github.com/Tgoldi/quantum-trade-ai.git && cd quantum-trade-ai && chmod +x quick-deploy-vast.sh && ./quick-deploy-vast.sh
+cd /opt && git clone https://github.com/Tgoldi/quantum-trade-ai.git && cd quantum-trade-ai && git checkout "<reviewed-commit-sha-or-tag>" && less quick-deploy-vast.sh && chmod +x quick-deploy-vast.sh && ./quick-deploy-vast.sh
 ```
 
 ---
@@ -48,10 +55,10 @@ The script will automatically:
 
 ## 🌐 Access Your Application
 
-After deployment completes, access at:
+After deployment completes, access the app over HTTPS only. Terminate TLS at a reverse proxy (e.g. nginx/Caddy) with a valid certificate, and bind the backend port (3001) to localhost or a private network so it is not publicly reachable.
 
-- **Frontend:** http://50.217.254.167:3000
-- **Backend API:** http://50.217.254.167:3001/api/health
+- **Frontend:** https://<your-domain>
+- **Backend API:** https://<your-domain>/api/health
 
 ---
 
@@ -93,7 +100,7 @@ pm2 restart quantum-frontend
 ## ✅ That's It!
 
 Your Quantum Trade AI platform is now live at:
-**http://50.217.254.167:3000**
+**https://<your-domain>**
 
 ---
 
