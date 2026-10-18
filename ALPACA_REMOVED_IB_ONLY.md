@@ -91,9 +91,10 @@ If you're using TWS instead of IB Gateway:
 Once you fund the account, test it:
 
 ```bash
+# Set EMAIL and PASSWORD in your shell environment first (never commit real credentials)
 TOKEN=$(curl -s -X POST http://localhost:3001/api/auth/login \
   -H "Content-Type: application/json" \
-  -d '{"emailOrUsername":"tomerg.work@gmail.com","password":"Tomergold1!"}' | jq -r '.tokens.accessToken')
+  -d "{\"emailOrUsername\":\"$EMAIL\",\"password\":\"$PASSWORD\"}" | jq -r '.tokens.accessToken')
 
 # Check IB account
 curl -s http://localhost:3001/api/ib/account \

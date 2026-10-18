@@ -166,13 +166,13 @@ class BackendService {
             const timeoutId = setTimeout(() => controller.abort(), isAIEndpoint ? 90000 : 30000);
             
             const response = await fetch(`${this.baseUrl}${endpoint}`, {
+                signal: controller.signal,
+                ...options,
                 headers: {
                     'Content-Type': 'application/json',
-                    ...(token && { 'Authorization': `Bearer ${token}` }),
-                    ...options.headers
-                },
-                signal: controller.signal,
-                ...options
+                    ...options.headers,
+                    ...(token && { 'Authorization': `Bearer ${token}` })
+                }
             });
             
             clearTimeout(timeoutId);

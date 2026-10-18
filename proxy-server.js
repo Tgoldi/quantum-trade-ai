@@ -21,9 +21,8 @@ const BACKEND_URL = `http://localhost:${BACKEND_PORT}`;
 // Security middleware
 app.use(helmet());
 
-// Middleware to parse JSON
-app.use(express.json({ limit: '1mb' }));
-app.use(express.urlencoded({ extended: true }));
+// NOTE: body parsers are intentionally NOT applied before the /api proxy so the
+// raw request stream can be piped through to the backend unchanged.
 
 // Proxy API requests to backend
 app.use('/api', async (req, res) => {
@@ -32,19 +31,28 @@ app.use('/api', async (req, res) => {
     const targetUrl = `${BACKEND_URL}${backendPath}`;
     console.log(`[PROXY] ${req.method} ${req.url} -> ${targetUrl}`);
     
+    // Explicit allow-list of forwarded headers (no client-supplied X-Forwarded-* / hop-by-hop headers)
+    const forwardedHeaders = {};
+    for (const name of ['authorization', 'content-type', 'accept', 'accept-language', 'user-agent']) {
+        if (req.headers[name] !== undefined) {
+            forwardedHeaders[name] = req.headers[name];
+        }
+    }
+    // Preserve original framing headers since the body is streamed through unchanged
+    for (const name of ['content-length', 'transfer-encoding']) {
+        if (req.headers[name] !== undefined) {
+            forwardedHeaders[name] = req.headers[name];
+        }
+    }
+    forwardedHeaders['x-forwarded-for'] = req.socket.remoteAddress || '';
+
     const options = {
         hostname: 'localhost',
         port: BACKEND_PORT,
         path: backendPath, // /api/health, /api/auth/register, etc.
         method: req.method,
-        headers: {
-            ...req.headers,
-            host: `localhost:${BACKEND_PORT}`,
-        }
+        headers: forwardedHeaders
     };
-    
-    // Remove host header to avoid issues
-    delete options.headers['host'];
     
     const proxyReq = http.request(options, (proxyRes) => {
         // Copy CORS headers from backend response
@@ -55,19 +63,16 @@ app.use('/api', async (req, res) => {
     
     proxyReq.on('error', (err) => {
         console.error('[PROXY ERROR]', err.message);
-        res.status(500).json({ error: 'Backend proxy error', message: err.message });
+        if (!res.headersSent) {
+            res.status(500).json({ error: 'Something went wrong' });
+        } else {
+            res.end();
+        }
     });
     
-    // Forward request body for POST/PUT requests
-    if (req.body && Object.keys(req.body).length > 0) {
-        const bodyData = JSON.stringify(req.body);
-        proxyReq.setHeader('Content-Type', 'application/json');
-        proxyReq.setHeader('Content-Length', Buffer.byteLength(bodyData));
-        proxyReq.write(bodyData);
-    }
-    
-    // End the request
-    proxyReq.end();
+    // Stream the original request body through unchanged (any content type)
+    req.on('error', () => proxyReq.destroy());
+    req.pipe(proxyReq);
 });
 
 // Serve frontend static files (must be before catch-all)

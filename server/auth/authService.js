@@ -61,7 +61,7 @@ class AuthService {
             );
 
             // Generate tokens
-            const tokens = this.generateTokens(userId, email, username);
+            const tokens = await this.generateTokensWithRotation(userId, email, username);
 
             // Cache session
             await cache.set(`session:${userId}`, {
@@ -135,7 +135,7 @@ class AuthService {
         );
 
         // Generate tokens
-        const tokens = this.generateTokens(user.id, user.email, user.username);
+        const tokens = await this.generateTokensWithRotation(user.id, user.email, user.username);
 
         // Cache session
         await cache.set(`session:${user.id}`, {
@@ -172,6 +172,7 @@ class AuthService {
     async logout(userId) {
         // Remove from cache
         await cache.del(`session:${userId}`);
+        await cache.del(`refresh:jti:${userId}`);
 
         // Invalidate all tokens for this user
         await cache.set(`tokens:invalidated:${userId}`, Date.now(), 60 * 60 * 24 * 30);
@@ -185,6 +186,11 @@ class AuthService {
     async verifyToken(token) {
         try {
             const decoded = jwt.verify(token, this.jwtSecret);
+
+            // Only access tokens may be used for authentication
+            if (decoded.type !== 'access') {
+                throw new Error('Invalid token type');
+            }
 
             // Check if token is invalidated
             const invalidated = await cache.get(`tokens:invalidated:${decoded.userId}`);
@@ -220,6 +226,18 @@ class AuthService {
                 throw new Error('Invalid refresh token');
             }
 
+            // Reject refresh tokens issued before invalidation (logout / password change)
+            const invalidated = await cache.get(`tokens:invalidated:${decoded.userId}`);
+            if (invalidated && invalidated > decoded.iat * 1000) {
+                throw new Error('Token has been invalidated');
+            }
+
+            // Reject refresh tokens that have already been rotated
+            const currentJti = await cache.get(`refresh:jti:${decoded.userId}`);
+            if (!currentJti || currentJti !== decoded.jti) {
+                throw new Error('Refresh token is no longer valid');
+            }
+
             // Check if user still exists and is active
             const [user] = await query(
                 'SELECT id, email, username, is_active FROM users WHERE id = $1',
@@ -230,8 +248,8 @@ class AuthService {
                 throw new Error('User not found or inactive');
             }
 
-            // Generate new access token
-            const tokens = this.generateTokens(user.id, user.email, user.username);
+            // Generate new tokens (rotates the refresh token)
+            const tokens = await this.generateTokensWithRotation(user.id, user.email, user.username);
 
             return tokens;
         } catch (error) {
@@ -240,9 +258,19 @@ class AuthService {
     }
 
     /**
+     * Generate tokens and record the current refresh token id for rotation
+     */
+    async generateTokensWithRotation(userId, email, username) {
+        const jti = uuidv4();
+        const tokens = this.generateTokens(userId, email, username, jti);
+        await cache.set(`refresh:jti:${userId}`, jti, 60 * 60 * 24 * 30);
+        return tokens;
+    }
+
+    /**
      * Generate JWT tokens
      */
-    generateTokens(userId, email, username) {
+    generateTokens(userId, email, username, jti) {
         const accessToken = jwt.sign(
             {
                 userId,
@@ -259,7 +287,8 @@ class AuthService {
                 userId,
                 email,
                 username,
-                type: 'refresh'
+                type: 'refresh',
+                jti: jti || uuidv4()
             },
             this.jwtSecret,
             { expiresIn: this.refreshTokenExpiration }

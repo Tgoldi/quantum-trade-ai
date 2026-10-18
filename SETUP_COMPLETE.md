@@ -68,33 +68,42 @@ Open your browser: **http://localhost:5173**
 ### Step 1: Create Environment File
 Create `.env` in the project root:
 
+Generate unique random secrets (never reuse default or example passwords):
+
 ```bash
-cat > .env << 'EOF'
-# Database (already configured in docker-compose)
+DB_PASS=$(openssl rand -hex 24)
+
+cat > .env << EOF
+# Database (generated unique password; POSTGRES_PASSWORD is read by docker-compose-full.yml)
 DB_HOST=postgres
 DB_PORT=5432
 DB_NAME=quantumtrade
 DB_USER=postgres
-DB_PASSWORD=postgres
+POSTGRES_PASSWORD=${DB_PASS}
+DB_PASSWORD=${DB_PASS}
 
-# Redis (already configured)
+# Redis
 REDIS_HOST=redis
 REDIS_PORT=6379
 
-# JWT Secret (generate a random string)
-JWT_SECRET=your-super-secret-jwt-key-change-this-in-production
+# JWT Secret (random 128-character hex string)
+JWT_SECRET=$(openssl rand -hex 64)
 
 # Interactive Brokers (optional - for live trading)
 IB_HOST=127.0.0.1
 IB_PORT=7497
 
-# Optional: API Keys for market data
-FINNHUB_API_KEY=your-finnhub-key
-ALPHA_VANTAGE_API_KEY=your-alpha-vantage-key
+# Optional: API Keys for market data (add your own keys)
+# FINNHUB_API_KEY=
+# ALPHA_VANTAGE_API_KEY=
 EOF
+
+chmod 600 .env
 ```
 
-**What this does:** Configures environment variables for the backend services.
+**What this does:** Configures environment variables for the backend services with freshly generated secrets. The `.env` file must never be committed to version control.
+
+**Security note:** Do not publish the PostgreSQL (5432) or Redis (6379) ports to the host unless you need direct access. If you do, bind them to localhost only (e.g. `127.0.0.1:5432:5432` in the compose file) and never expose them on a public interface.
 
 ### Step 2: Start Docker Containers
 From the project root:

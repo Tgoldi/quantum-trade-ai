@@ -150,9 +150,9 @@ Once you fund the account:
 ```bash
 TOKEN=$(curl -s -X POST http://localhost:3001/api/auth/login \
   -H "Content-Type: application/json" \
-  -d '{"emailOrUsername":"tomerg.work@gmail.com","password":"Tomergold1!"}' | jq -r '.tokens.accessToken')
+  -d '{"emailOrUsername":"<YOUR_EMAIL>","password":"<YOUR_PASSWORD>"}' | jq -r '.tokens.accessToken')
 
-PORTFOLIO_ID="0f26dd9d-5d65-4e4d-a4ef-914aaadb4c0d"
+PORTFOLIO_ID="<YOUR_PORTFOLIO_ID>"
 
 curl -s -X POST http://localhost:3001/api/trade \
   -H "Authorization: Bearer $TOKEN" \

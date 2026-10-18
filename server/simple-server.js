@@ -14,8 +14,9 @@ const PORT = process.env.PORT || 3001;
 // Middleware
 
 app.use(helmet());
+const allowedOrigin = process.env.FRONTEND_URL || 'http://localhost:5173';
 app.use(cors({
-    origin: process.env.FRONTEND_URL || 'http://localhost:5173',
+    origin: allowedOrigin,
     credentials: true
 }));
 app.use(express.json({ limit: '1mb' }));
@@ -31,7 +32,11 @@ app.use('/api/', apiLimiter);
 const wss = new WebSocket.Server({ port: 8080 });
 const connectedClients = new Set();
 
-wss.on('connection', (ws) => {
+wss.on('connection', (ws, request) => {
+    if (request.headers.origin !== allowedOrigin) {
+        ws.close(1008, 'Origin not allowed');
+        return;
+    }
     console.log('📱 Frontend client connected');
     connectedClients.add(ws);
 

@@ -17,6 +17,16 @@ app.use(cors({
     origin: process.env.FRONTEND_URL || 'http://localhost:5173',
     credentials: true
 }));
+const securityHeaders = (req, res, next) => {
+    res.setHeader('X-Content-Type-Options', 'nosniff');
+    res.setHeader('X-Frame-Options', 'SAMEORIGIN');
+    res.setHeader('Referrer-Policy', 'strict-origin-when-cross-origin');
+    if (process.env.NODE_ENV === 'production') {
+        res.setHeader('Strict-Transport-Security', 'max-age=31536000; includeSubDomains');
+    }
+    next();
+};
+app.use(securityHeaders);
 app.use(express.json());
 
 // Initialize Alpaca SDK
@@ -185,7 +195,7 @@ app.get('/api/account', async (req, res) => {
         res.json(account);
     } catch (error) {
         console.error('Error fetching account:', error);
-        res.status(500).json({ error: error.message });
+        res.status(500).json({ error: 'Internal server error' });
     }
 });
 
@@ -200,7 +210,7 @@ app.get('/api/positions', async (req, res) => {
         res.json(positions);
     } catch (error) {
         console.error('Error fetching positions:', error);
-        res.status(500).json({ error: error.message });
+        res.status(500).json({ error: 'Internal server error' });
     }
 });
 
@@ -233,7 +243,7 @@ app.get('/api/portfolio', async (req, res) => {
         res.json(portfolio);
     } catch (error) {
         console.error('Error fetching portfolio:', error);
-        res.status(500).json({ error: error.message });
+        res.status(500).json({ error: 'Internal server error' });
     }
 });
 
@@ -269,7 +279,7 @@ app.get('/api/quotes', async (req, res) => {
         res.json(result);
     } catch (error) {
         console.error('Error fetching quotes:', error);
-        res.status(500).json({ error: error.message });
+        res.status(500).json({ error: 'Internal server error' });
     }
 });
 
@@ -325,7 +335,7 @@ app.get('/api/market-movers', async (req, res) => {
         });
     } catch (error) {
         console.error('Error fetching market movers:', error);
-        res.status(500).json({ error: error.message });
+        res.status(500).json({ error: 'Internal server error' });
     }
 });
 
@@ -335,26 +345,50 @@ app.post('/api/orders', async (req, res) => {
         return res.status(400).json({ error: 'Alpaca not configured' });
     }
 
-    const { symbol, qty, side, type = 'market', timeInForce = 'day', limitPrice } = req.body;
+    const { symbol, qty, side, type = 'market', timeInForce = 'day', limitPrice } = req.body || {};
+
+    const MAX_QTY = 10000;
+    const MAX_PRICE = 1000000;
+    const numQty = Number(qty);
+    const numLimit = limitPrice === undefined || limitPrice === null ? undefined : Number(limitPrice);
+
+    if (typeof symbol !== 'string' || !/^[A-Z.]{1,6}$/.test(symbol)) {
+        return res.status(400).json({ error: 'Invalid symbol' });
+    }
+    if (!Number.isFinite(numQty) || numQty <= 0 || numQty > MAX_QTY) {
+        return res.status(400).json({ error: 'Invalid qty' });
+    }
+    if (!['buy', 'sell'].includes(side)) {
+        return res.status(400).json({ error: 'Invalid side' });
+    }
+    if (!['market', 'limit'].includes(type)) {
+        return res.status(400).json({ error: 'Invalid type' });
+    }
+    if (!['day', 'gtc', 'opg', 'cls', 'ioc', 'fok'].includes(timeInForce)) {
+        return res.status(400).json({ error: 'Invalid timeInForce' });
+    }
+    if (type === 'limit' && (numLimit === undefined || !Number.isFinite(numLimit) || numLimit <= 0 || numLimit > MAX_PRICE)) {
+        return res.status(400).json({ error: 'Invalid limitPrice' });
+    }
 
     try {
         const orderData = {
             symbol,
-            qty: qty.toString(),
+            qty: numQty.toString(),
             side,
             type,
             time_in_force: timeInForce
         };
 
-        if (type === 'limit' && limitPrice) {
-            orderData.limit_price = limitPrice;
+        if (type === 'limit') {
+            orderData.limit_price = numLimit;
         }
 
         const order = await alpaca.createOrder(orderData);
         res.json(order);
     } catch (error) {
         console.error('Error placing order:', error);
-        res.status(500).json({ error: error.message });
+        res.status(500).json({ error: 'Internal server error' });
     }
 });
 
@@ -372,7 +406,7 @@ app.get('/api/orders', async (req, res) => {
         res.json(orders);
     } catch (error) {
         console.error('Error fetching orders:', error);
-        res.status(500).json({ error: error.message });
+        res.status(500).json({ error: 'Internal server error' });
     }
 });
 
@@ -429,7 +463,7 @@ app.post('/api/ai/analyze', async (req, res) => {
 
     } catch (error) {
         console.error('Error in AI analysis:', error);
-        res.status(500).json({ error: error.message });
+        res.status(500).json({ error: 'Internal server error' });
     }
 });
 
@@ -482,7 +516,7 @@ app.get('/api/ai/portfolio', async (req, res) => {
 
     } catch (error) {
         console.error('Error in portfolio analysis:', error);
-        res.status(500).json({ error: error.message });
+        res.status(500).json({ error: 'Internal server error' });
     }
 });
 
@@ -532,7 +566,7 @@ app.post('/api/ai/batch', async (req, res) => {
 
     } catch (error) {
         console.error('Error in batch AI analysis:', error);
-        res.status(500).json({ error: error.message });
+        res.status(500).json({ error: 'Internal server error' });
     }
 });
 
@@ -590,7 +624,7 @@ app.post('/api/ai/demo', async (req, res) => {
 
     } catch (error) {
         console.error('Error in demo AI analysis:', error);
-        res.status(500).json({ error: error.message });
+        res.status(500).json({ error: 'Internal server error' });
     }
 });
 
@@ -618,7 +652,7 @@ app.post('/api/ai/algorithm', async (req, res) => {
 
     } catch (error) {
         console.error('Error generating algorithm:', error);
-        res.status(500).json({ error: error.message });
+        res.status(500).json({ error: 'Internal server error' });
     }
 });
 

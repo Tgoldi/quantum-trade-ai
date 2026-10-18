@@ -3,8 +3,18 @@ const { Pool } = require('pg');
 const Redis = require('redis');
 
 // PostgreSQL Connection Pool (Supabase)
+// Legacy fallback host kept so existing deployments that never set DB_HOST keep working.
+// Set DB_HOST explicitly; a warning is emitted whenever this fallback is used.
+const LEGACY_DEFAULT_DB_HOST = 'db.ngwbwanpamfqoaitofih.supabase.co';
+if (!process.env.DB_HOST) {
+    console.warn('⚠️ DB_HOST is not set; falling back to legacy default host. Set DB_HOST explicitly.');
+}
+if (process.env.DB_SSL !== 'true' && process.env.DB_SSL !== 'false') {
+    console.warn('⚠️ DB_SSL is not set; database connection is unencrypted. Set DB_SSL=true to enable TLS.');
+}
+
 const pgPool = new Pool({
-    host: process.env.DB_HOST || 'db.ngwbwanpamfqoaitofih.supabase.co',
+    host: process.env.DB_HOST || LEGACY_DEFAULT_DB_HOST,
     port: process.env.DB_PORT || 5432,
     database: process.env.DB_NAME || 'postgres',
     user: process.env.DB_USER || 'postgres',
@@ -72,7 +82,9 @@ async function query(text, params, cacheKey = null, cacheTTL = 60) {
     const res = await pgPool.query(text, params);
     const duration = Date.now() - start;
 
-    console.log('📊 Executed query', { text: text.substring(0, 100), duration, rows: res.rowCount });
+    if (process.env.DB_DEBUG === 'true') {
+        console.log('📊 Executed query', { duration, rows: res.rowCount });
+    }
 
     // Cache result if requested
     if (cacheKey && redisClient.connected && res.rows) {

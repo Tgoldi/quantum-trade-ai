@@ -85,22 +85,29 @@ EOF
 
 ### Option B: Full Stack (Docker with PostgreSQL/Redis)
 
+Generate the secrets in a separate step first, so they are real random values and never a placeholder:
+
 ```bash
-# Create backend environment file
-cat > server/.env << 'EOF'
+# Generate secrets (run once; do not reuse across deployments)
+DB_PASSWORD="$(openssl rand -hex 24)"
+JWT_SECRET="$(openssl rand -base64 32)"
+
+# Create backend environment file (unquoted heredoc so the variables expand)
+umask 077
+cat > server/.env << EOF
 # Database Configuration
 DB_HOST=postgres
 DB_PORT=5432
 DB_NAME=quantumtrade
 DB_USER=postgres
-DB_PASSWORD=postgres_secure_password_change_this
+DB_PASSWORD=${DB_PASSWORD}
 
 # Redis Configuration
 REDIS_HOST=redis
 REDIS_PORT=6379
 
-# JWT Secret (generate a secure random string)
-JWT_SECRET=$(openssl rand -base64 32)
+# JWT Secret
+JWT_SECRET=${JWT_SECRET}
 
 # Node Environment
 NODE_ENV=production
@@ -111,7 +118,17 @@ PORT=3001
 # ALPACA_SECRET_KEY=your_secret_here
 # FINNHUB_API_KEY=your_key_here
 EOF
+
+# Verify the secrets were expanded and are not literal placeholder text
+grep -E '^(DB_PASSWORD|JWT_SECRET)=' server/.env
+if grep -q '\$(' server/.env || grep -q 'change_this' server/.env; then
+  echo "ERROR: secrets were not generated correctly"; exit 1
+fi
 ```
+
+The application must refuse to start if `DB_PASSWORD` is empty or still set to a default/placeholder value such as `postgres_secure_password_change_this`.
+
+> **Already deployed with an earlier version of this guide?** Generate new secrets and change your database password right away (`ALTER USER postgres PASSWORD '<new>';`), then update `server/.env` and restart the services.
 
 ---
 
@@ -147,6 +164,10 @@ pm2 startup
 # Make sure you're in the project root
 cd /opt/quantum-trade-ai
 
+# IMPORTANT: in docker-compose-full.yml, publish postgres, redis and the backend
+# on loopback only (e.g. "127.0.0.1:5432:5432", "127.0.0.1:6379:6379",
+# "127.0.0.1:3001:3001") or omit their `ports:` mappings entirely.
+
 # Start all services
 docker-compose -f docker-compose-full.yml up -d
 
@@ -157,15 +178,18 @@ docker ps
 docker-compose -f docker-compose-full.yml logs -f
 ```
 
-**Access:**
-- Frontend: `http://50.217.254.167:5173`
-- Backend API: `http://50.217.254.167:3001`
-- API Health: `http://50.217.254.167:3001/api/health`
+**Access (through the Nginx reverse proxy from Step 7; ports 5432, 6379 and 3001 are not public):**
+- Frontend: `http://50.217.254.167/`
+- Backend API: `http://50.217.254.167/api/`
+- API Health: `http://50.217.254.167/api/health`
 
 ### Option C: Production Docker Setup
 
 ```bash
 cd server
+
+# IMPORTANT: bind database, Redis and backend ports to 127.0.0.1 in
+# docker-compose-production.yml (or omit their `ports:` mappings).
 
 # Build and start production services
 docker-compose -f docker-compose-production.yml up -d --build
@@ -174,26 +198,28 @@ docker-compose -f docker-compose-production.yml up -d --build
 docker-compose -f docker-compose-production.yml ps
 ```
 
-**Access:**
-- Frontend: `http://50.217.254.167:8081`
-- Backend API: `http://50.217.254.167:3001`
+**Access (through the Nginx reverse proxy from Step 7):**
+- Frontend: `http://50.217.254.167/`
+- Backend API: `http://50.217.254.167/api/`
 
 ---
 
 ## 🔒 Step 6: Configure Firewall (Important!)
 
-Vast.ai instances may have firewalls. Configure ports:
+Vast.ai instances may have firewalls. Deny all inbound traffic by default and expose only SSH and the reverse proxy. Do **not** open 5432 (PostgreSQL), 6379 (Redis) or 3001 (backend API) publicly; bind them to `127.0.0.1` or the internal Docker network only, and route all public traffic through the Nginx reverse proxy (Step 7) with TLS.
 
 ```bash
-# Allow HTTP/HTTPS
+# Default policy: deny inbound, allow outbound
+ufw default deny incoming
+ufw default allow outgoing
+
+# Allow SSH (this instance uses port 41221) and HTTP/HTTPS only
+ufw allow 41221/tcp
 ufw allow 80/tcp
 ufw allow 443/tcp
 
-# Allow application ports
-ufw allow 3000/tcp  # Frontend (if using serve)
-ufw allow 3001/tcp  # Backend API
-ufw allow 5173/tcp  # Frontend (if using Docker)
-ufw allow 8081/tcp  # Frontend (production)
+# Keep 5432, 6379 and 3001 closed to the public;
+# Nginx reaches the app on localhost.
 
 # Enable firewall
 ufw enable
@@ -201,6 +227,8 @@ ufw enable
 # Check status
 ufw status
 ```
+
+In your Docker Compose files, publish backing services on loopback only (e.g. `127.0.0.1:5432:5432`, `127.0.0.1:6379:6379`, `127.0.0.1:3001:3001`) or omit the `ports:` mapping entirely.
 
 ---
 
@@ -314,11 +342,11 @@ docker ps
 ### Test from Your Local Machine
 
 ```bash
-# Test backend health
-curl http://50.217.254.167:3001/api/health
+# Test backend health (via the Nginx reverse proxy; port 3001 is not public)
+curl http://50.217.254.167/api/health
 
-# Test frontend
-curl http://50.217.254.167:3000
+# Test frontend (via the Nginx reverse proxy)
+curl http://50.217.254.167/
 ```
 
 ---
@@ -442,8 +470,8 @@ docker logs quantumtrade-redis
 ### Important URLs
 - **Repository**: https://github.com/Tgoldi/quantum-trade-ai
 - **Instance IP**: 50.217.254.167
-- **Frontend**: http://50.217.254.167:3000 (or configured port)
-- **Backend**: http://50.217.254.167:3001
+- **Frontend**: http://50.217.254.167/ (via Nginx)
+- **Backend**: http://50.217.254.167/api/ (via Nginx; port 3001 is localhost-only)
 
 ### Common Commands
 
@@ -473,7 +501,7 @@ cd /opt/quantum-trade-ai && git pull && npm install && npm run build && pm2 rest
 
 Your Quantum Trade AI platform should now be running on your Vast.ai instance!
 
-Access it at: `http://50.217.254.167:3000` (or your configured port)
+Access it at: `http://50.217.254.167` (through the Nginx reverse proxy; app ports stay bound to localhost)
 
 ---
 

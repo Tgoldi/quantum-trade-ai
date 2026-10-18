@@ -9,6 +9,7 @@ class InteractiveBrokersBroker extends BaseBroker {
         this.port = config.port || 7497; // 7497 for paper trading, 7496 for live
         this.clientId = config.clientId || 1;
         this.accountId = config.accountId || null;
+        this.maxOrderQuantity = config.maxOrderQuantity || 10000;
         
         this.api = null;
         this.connected = false;
@@ -217,6 +218,14 @@ class InteractiveBrokersBroker extends BaseBroker {
 
         this.validateOrder(order);
 
+        const quantity = Number(order.quantity);
+        if (!Number.isFinite(quantity) || quantity <= 0) {
+            throw new Error('Quantity must be a positive finite number');
+        }
+        if (quantity > this.maxOrderQuantity) {
+            throw new Error(`Order quantity ${quantity} exceeds maximum allowed ${this.maxOrderQuantity}`);
+        }
+
         return new Promise((resolve, reject) => {
             const orderId = this.nextOrderId++;
 
@@ -232,7 +241,7 @@ class InteractiveBrokersBroker extends BaseBroker {
             const ibOrder = {
                 orderId: orderId,
                 action: order.side.toLowerCase() === 'buy' ? OrderAction.BUY : OrderAction.SELL,
-                totalQuantity: order.quantity,
+                totalQuantity: quantity,
                 orderType: order.orderType.toUpperCase() === 'MARKET' ? OrderType.MKT : OrderType.LMT,
                 tif: TimeInForce.DAY
             };
@@ -268,6 +277,12 @@ class InteractiveBrokersBroker extends BaseBroker {
             setTimeout(() => {
                 if (this.orderCallbacks.has(orderId)) {
                     this.orderCallbacks.delete(orderId);
+                    try {
+                        // Cancel the still-live order so a timed-out request cannot fill later
+                        this.api.cancelOrder(orderId);
+                    } catch (e) {
+                        console.error(`Failed to cancel timed-out order ${orderId}: ${e.message}`);
+                    }
                     reject(new Error('Order placement timeout'));
                 }
             }, 30000);

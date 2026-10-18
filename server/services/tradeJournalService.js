@@ -6,7 +6,21 @@ class TradeJournalService {
     /**
      * Add journal entry for a trade
      */
-    async addJournalEntry(tradeId, entry) {
+    async addJournalEntry(tradeId, entry, userId) {
+        if (!userId) {
+            throw new Error('Authenticated user required');
+        }
+        const owned = await query(
+            `SELECT t.id
+       FROM trades t
+       JOIN portfolios p ON p.id = t.portfolio_id
+       WHERE t.id = $1 AND p.user_id = $2`,
+            [tradeId, userId]
+        );
+        if (!owned || owned.length === 0) {
+            throw new Error('Trade not found or access denied');
+        }
+
         const {
             preTradeThoughts,
             strategy,
@@ -45,7 +59,10 @@ class TradeJournalService {
     /**
      * Update journal entry with post-trade analysis
      */
-    async updatePostTrade(journalId, postTradeData) {
+    async updatePostTrade(journalId, postTradeData, userId) {
+        if (!userId) {
+            throw new Error('Authenticated user required');
+        }
         const {
             postTradeThoughts,
             whatWentWell,
@@ -64,7 +81,12 @@ class TradeJournalService {
         emotional_impact = $5,
         would_repeat = $6,
         updated_at = NOW()
-      WHERE id = $7`,
+      WHERE id = $7
+      AND trade_id IN (
+        SELECT t.id FROM trades t
+        JOIN portfolios p ON p.id = t.portfolio_id
+        WHERE p.user_id = $8
+      )`,
             [
                 postTradeThoughts,
                 whatWentWell,
@@ -72,7 +94,8 @@ class TradeJournalService {
                 lessons,
                 emotionalImpact,
                 wouldRepeat,
-                journalId
+                journalId,
+                userId
             ]
         );
     }
@@ -81,12 +104,23 @@ class TradeJournalService {
      * Analyze trading patterns and mistakes
      */
     async analyzePerformance(portfolioId, timeframe = '30d') {
+        const ALLOWED_TIMEFRAMES = {
+            '7d': '7 days',
+            '30d': '30 days',
+            '90d': '90 days',
+            '365d': '365 days'
+        };
+        const interval = ALLOWED_TIMEFRAMES[timeframe];
+        if (!interval) {
+            throw new Error('Invalid timeframe');
+        }
+
         const trades = await query(
             `SELECT t.*, tj.*
        FROM trades t
        LEFT JOIN trade_journal tj ON t.id = tj.trade_id
        WHERE t.portfolio_id = $1
-       AND t.execution_time >= NOW() - INTERVAL '${timeframe}'
+       AND t.execution_time >= NOW() - INTERVAL '${interval}'
        ORDER BY t.execution_time DESC`,
             [portfolioId]
         );

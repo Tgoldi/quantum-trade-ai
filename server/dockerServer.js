@@ -72,7 +72,15 @@ if (process.env.ALPACA_API_KEY && process.env.ALPACA_SECRET_KEY) {
 // WebSocket server for frontend communication
 const wss = new WebSocket.Server({ port: 8080 });
 
-wss.on('connection', (ws) => {
+const allowedWsOrigins = [process.env.FRONTEND_URL || 'https://yourdomain.com'];
+
+wss.on('connection', (ws, request) => {
+    const origin = request.headers.origin;
+    if (!origin || !allowedWsOrigins.includes(origin)) {
+        console.warn(`Rejected WebSocket connection from origin: ${origin}`);
+        ws.close();
+        return;
+    }
     console.log('📱 Frontend client connected');
 
     ws.on('close', () => {
@@ -175,7 +183,7 @@ app.post('/api/ai/ensemble', async (req, res) => {
 
     } catch (error) {
         console.error('Error in ensemble AI analysis:', error);
-        res.status(500).json({ error: error.message });
+        res.status(500).json({ error: 'Something went wrong' });
     }
 });
 
@@ -259,7 +267,7 @@ app.post('/api/ai/ensemble-batch', async (req, res) => {
 
     } catch (error) {
         console.error('Error in batch ensemble analysis:', error);
-        res.status(500).json({ error: error.message });
+        res.status(500).json({ error: 'Something went wrong' });
     }
 });
 
@@ -291,7 +299,8 @@ app.post('/api/ai/warmup', async (req, res) => {
             timestamp: new Date().toISOString()
         });
     } catch (error) {
-        res.status(500).json({ error: error.message });
+        console.error('Error warming up models:', error);
+        res.status(500).json({ error: 'Something went wrong' });
     }
 });
 
@@ -322,7 +331,8 @@ app.get('/api/account', async (req, res) => {
             equity: parseFloat(account.equity)
         });
     } catch (error) {
-        res.status(500).json({ error: error.message });
+        console.error('Error fetching account:', error);
+        res.status(500).json({ error: 'Something went wrong' });
     }
 });
 
@@ -349,7 +359,8 @@ app.get('/api/quotes/:symbols', async (req, res) => {
 
         res.json(result);
     } catch (error) {
-        res.status(500).json({ error: error.message });
+        console.error('Error fetching quotes:', error);
+        res.status(500).json({ error: 'Something went wrong' });
     }
 });
 

@@ -69,7 +69,16 @@ if (process.env.ALPACA_API_KEY && process.env.ALPACA_SECRET_KEY) {
 // WebSocket server for frontend communication
 const wss = new WebSocket.Server({ port: 8080 });
 
-wss.on('connection', (ws) => {
+const allowedWsOrigins = [process.env.FRONTEND_URL || 'https://yourdomain.com'];
+
+wss.on('connection', (ws, request) => {
+    const origin = request.headers.origin;
+    if (!allowedWsOrigins.includes(origin)) {
+        console.warn('🚫 Rejected WebSocket connection from disallowed origin:', origin);
+        ws.close();
+        return;
+    }
+
     console.log('📱 Frontend client connected');
     
     ws.on('close', () => {
@@ -143,7 +152,7 @@ app.get('/api/account', async (req, res) => {
         });
     } catch (error) {
         console.error('Error fetching account:', error);
-        res.status(500).json({ error: error.message });
+        res.status(500).json({ error: 'Something went wrong' });
     }
 });
 
@@ -182,7 +191,7 @@ app.get('/api/portfolio', async (req, res) => {
         });
     } catch (error) {
         console.error('Error fetching portfolio:', error);
-        res.status(500).json({ error: error.message });
+        res.status(500).json({ error: 'Something went wrong' });
     }
 });
 
@@ -213,7 +222,7 @@ app.get('/api/quotes/:symbols', async (req, res) => {
         res.json(result);
     } catch (error) {
         console.error('Error fetching quotes:', error);
-        res.status(500).json({ error: error.message });
+        res.status(500).json({ error: 'Something went wrong' });
     }
 });
 
@@ -254,7 +263,7 @@ app.post('/api/ai/fast', apiLimiter, async (req, res) => {
 
     } catch (error) {
         console.error('Error in fast AI analysis:', error);
-        res.status(500).json({ error: error.message });
+        res.status(500).json({ error: 'Something went wrong' });
     }
 });
 
@@ -311,7 +320,7 @@ app.post('/api/ai/fast-batch', apiLimiter, async (req, res) => {
 
     } catch (error) {
         console.error('Error in fast batch analysis:', error);
-        res.status(500).json({ error: error.message });
+        res.status(500).json({ error: 'Something went wrong' });
     }
 });
 
@@ -370,7 +379,7 @@ app.get('/api/market-movers', async (req, res) => {
         }
     } catch (error) {
         console.error('Error fetching market movers:', error);
-        res.status(500).json({ error: error.message });
+        res.status(500).json({ error: 'Something went wrong' });
     }
 });
 

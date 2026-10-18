@@ -124,6 +124,15 @@ const OrderForm = ({ onSubmit, onClose }) => {
 
   const handleSubmit = (e) => {
     e.preventDefault();
+    const quantity = Number(orderData.quantity);
+    const price = Number(orderData.price);
+    const stopPrice = Number(orderData.stop_price);
+    const needsPrice = orderData.order_type === 'limit' || orderData.order_type === 'stop_limit';
+    const needsStop = orderData.order_type === 'stop' || orderData.order_type === 'stop_limit';
+    if (!/^[A-Z.]{1,10}$/.test(orderData.symbol)) return;
+    if (!Number.isInteger(quantity) || quantity <= 0 || quantity > 1000000) return;
+    if (needsPrice && (!Number.isFinite(price) || price <= 0 || price > 10000000)) return;
+    if (needsStop && (!Number.isFinite(stopPrice) || stopPrice <= 0 || stopPrice > 10000000)) return;
     onSubmit(orderData);
     onClose();
   };
@@ -257,7 +266,16 @@ export default function OrderManagement() {
   const loadOrders = async () => {
     try {
       // Load AI-generated orders from localStorage (real orders from AI execution)
-      const aiOrders = JSON.parse(localStorage.getItem('ai_orders') || '[]');
+      const parsedOrders = JSON.parse(localStorage.getItem('ai_orders') || '[]');
+      const aiOrders = Array.isArray(parsedOrders)
+        ? parsedOrders.filter(o =>
+            o && typeof o === 'object' &&
+            typeof o.symbol === 'string' &&
+            typeof o.status === 'string' &&
+            typeof o.side === 'string' &&
+            typeof o.order_type === 'string' &&
+            Number.isFinite(Number(o.quantity)))
+        : [];
       
       // TODO: In production, fetch from backend API
       // const backendOrders = await backendService.getOrders();
@@ -274,7 +292,11 @@ export default function OrderManagement() {
 
   const handlePlaceOrder = async (orderData) => {
     try {
-      // Add validation and risk checks here
+      const quantity = Number(orderData.quantity);
+      if (!Number.isInteger(quantity) || quantity <= 0) {
+        throw new Error('Invalid quantity');
+      }
+      // Local pending record only; authoritative validation/risk checks must occur server-side
       const newOrder = {
         ...orderData,
         id: Date.now(),
@@ -282,8 +304,7 @@ export default function OrderManagement() {
         status: 'pending',
         trading_mode: 'paper', // Default to paper trading
         filled_quantity: 0,
-        remaining_quantity: parseInt(orderData.quantity),
-        risk_checks_passed: true,
+        remaining_quantity: quantity,
         created_date: new Date().toISOString()
       };
       
@@ -421,58 +442,22 @@ export default function OrderManagement() {
         </TabsList>
 
         <TabsContent value={activeTab} className="mt-6">
-          <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
-            <AnimatePresence>
-              {(filterOrders(activeTab).length > 0 ? filterOrders(activeTab) : [
-                {
-                  id: 1,
-                  order_id: 'ORD_001',
-                  symbol: 'AAPL',
-                  side: 'buy',
-                  order_type: 'limit',
-                  quantity: 100,
-                  price: 180.00,
-                  status: 'open',
-                  filled_quantity: 0,
-                  time_in_force: 'day',
-                  created_date: new Date().toISOString()
-                },
-                {
-                  id: 2,
-                  order_id: 'ORD_002',
-                  symbol: 'NVDA',
-                  side: 'buy',
-                  order_type: 'market',
-                  quantity: 50,
-                  status: 'filled',
-                  filled_quantity: 50,
-                  average_fill_price: 920.50,
-                  time_in_force: 'day',
-                  created_date: new Date(Date.now() - 3600000).toISOString()
-                },
-                {
-                  id: 3,
-                  order_id: 'ORD_003',
-                  symbol: 'TSLA',
-                  side: 'sell',
-                  order_type: 'stop',
-                  quantity: 25,
-                  stop_price: 200.00,
-                  status: 'pending',
-                  filled_quantity: 0,
-                  time_in_force: 'gtc',
-                  created_date: new Date(Date.now() - 7200000).toISOString()
-                }
-              ]).map((order) => (
-                <OrderCard
-                  key={order.id}
-                  order={order}
-                  onCancel={handleCancelOrder}
-                  onViewDetails={handleViewDetails}
-                />
-              ))}
-            </AnimatePresence>
-          </div>
+          {filterOrders(activeTab).length === 0 ? (
+            <p className="text-slate-400 text-center py-8">No orders yet</p>
+          ) : (
+            <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
+              <AnimatePresence>
+                {filterOrders(activeTab).map((order) => (
+                  <OrderCard
+                    key={order.id}
+                    order={order}
+                    onCancel={handleCancelOrder}
+                    onViewDetails={handleViewDetails}
+                  />
+                ))}
+              </AnimatePresence>
+            </div>
+          )}
         </TabsContent>
       </Tabs>
 
