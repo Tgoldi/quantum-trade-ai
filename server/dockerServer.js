@@ -175,7 +175,7 @@ app.post('/api/ai/ensemble', async (req, res) => {
 
     } catch (error) {
         console.error('Error in ensemble AI analysis:', error);
-        res.status(500).json({ error: error.message });
+        res.status(500).json({ error: 'Something went wrong' });
     }
 });
 
@@ -259,7 +259,7 @@ app.post('/api/ai/ensemble-batch', async (req, res) => {
 
     } catch (error) {
         console.error('Error in batch ensemble analysis:', error);
-        res.status(500).json({ error: error.message });
+        res.status(500).json({ error: 'Something went wrong' });
     }
 });
 
@@ -291,7 +291,8 @@ app.post('/api/ai/warmup', async (req, res) => {
             timestamp: new Date().toISOString()
         });
     } catch (error) {
-        res.status(500).json({ error: error.message });
+        console.error('Error in model warmup:', error);
+        res.status(500).json({ error: 'Something went wrong' });
     }
 });
 
@@ -322,7 +323,8 @@ app.get('/api/account', async (req, res) => {
             equity: parseFloat(account.equity)
         });
     } catch (error) {
-        res.status(500).json({ error: error.message });
+        console.error('Error fetching account:', error);
+        res.status(500).json({ error: 'Something went wrong' });
     }
 });
 
@@ -349,7 +351,8 @@ app.get('/api/quotes/:symbols', async (req, res) => {
 
         res.json(result);
     } catch (error) {
-        res.status(500).json({ error: error.message });
+        console.error('Error fetching quotes:', error);
+        res.status(500).json({ error: 'Something went wrong' });
     }
 });
 

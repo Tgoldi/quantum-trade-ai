@@ -25,6 +25,20 @@ class BacktestingService {
 
         console.log(`📊 Running backtest: ${strategyConfig.name} from ${startDate} to ${endDate}`);
 
+        const MAX_SYMBOLS = 20;
+        const MAX_RANGE_DAYS = 3650;
+        if (!Array.isArray(symbols) || symbols.length === 0 || symbols.length > MAX_SYMBOLS) {
+            throw new Error(`symbols must be an array of 1 to ${MAX_SYMBOLS} entries`);
+        }
+        const startMs = new Date(startDate).getTime();
+        const endMs = new Date(endDate).getTime();
+        if (Number.isNaN(startMs) || Number.isNaN(endMs) || endMs < startMs) {
+            throw new Error('Invalid date range');
+        }
+        if ((endMs - startMs) / 86400000 > MAX_RANGE_DAYS) {
+            throw new Error(`Date range must not exceed ${MAX_RANGE_DAYS} days`);
+        }
+
         try {
             // Gather historical data for all symbols
             const historicalData = await this.gatherHistoricalData(symbols, startDate, endDate);
@@ -104,12 +118,18 @@ class BacktestingService {
 
         const sortedDates = Array.from(allDates).sort();
 
+        // Precompute date -> bar map per symbol
+        const barMaps = {};
+        for (const [symbol, bars] of Object.entries(historicalData)) {
+            barMaps[symbol] = new Map(bars.map(b => [b.time, b]));
+        }
+
         // Simulate day by day
         for (const date of sortedDates) {
             // Get prices for this date
             const prices = {};
-            for (const [symbol, bars] of Object.entries(historicalData)) {
-                const bar = bars.find(b => b.time === date);
+            for (const symbol of Object.keys(historicalData)) {
+                const bar = barMaps[symbol].get(date);
                 if (bar) {
                     prices[symbol] = bar.close;
                 }

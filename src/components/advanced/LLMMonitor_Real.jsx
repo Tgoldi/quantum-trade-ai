@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { z } from 'zod';
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -18,6 +19,34 @@ import {
     Globe
 } from "lucide-react";
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, BarChart, Bar } from 'recharts';
+
+const llmScalarSchema = z.union([z.string().max(1000), z.number(), z.boolean(), z.null()]);
+const llmScalarRecordSchema = z.record(llmScalarSchema);
+
+const llmModelsSchema = z.array(
+    z.object({
+        name: z.string().max(200),
+        status: z.string().max(100).optional(),
+        provider: z.string().max(200).optional(),
+        version: z.union([z.string().max(100), z.number()]).optional(),
+        parameters: llmScalarRecordSchema.optional(),
+        performance: llmScalarRecordSchema.optional(),
+        usage_stats: llmScalarRecordSchema.optional(),
+        health: llmScalarRecordSchema.optional()
+    }).strip()
+);
+
+const llmMetricPointSchema = z.record(llmScalarSchema);
+
+const llmMetricsSchema = z.object({
+    historical: z.array(llmMetricPointSchema).optional(),
+    realtime: z.array(llmMetricPointSchema).optional()
+}).strip();
+
+const llmHealthSchema = z.object({
+    overallStatus: z.string().max(100).optional(),
+    activeModels: z.union([z.string().max(100), z.number()]).optional()
+}).strip();
 
 const LLMMonitor = () => {
     const [llmData, setLlmData] = useState([]);
@@ -55,7 +84,14 @@ const LLMMonitor = () => {
             console.log('📡 Fetching real LLM data from server...');
             const response = await fetch('http://localhost:3001/api/llm/models');
             if (response.ok) {
-                const data = await response.json();
+                const parsed = llmModelsSchema.safeParse(await response.json());
+                if (!parsed.success) {
+                    console.error('Invalid LLM models response:', parsed.error);
+                    setLlmData([]);
+                    setLoading(false);
+                    return;
+                }
+                const data = parsed.data;
                 setLlmData(data);
                 if (data.length > 0 && !selectedModel) {
                     setSelectedModel(data[0]);
@@ -77,7 +113,13 @@ const LLMMonitor = () => {
         try {
             const response = await fetch('http://localhost:3001/api/llm/metrics');
             if (response.ok) {
-                const metricsData = await response.json();
+                const parsedMetrics = llmMetricsSchema.safeParse(await response.json());
+                if (!parsedMetrics.success) {
+                    console.error('Invalid performance metrics response:', parsedMetrics.error);
+                    setPerformanceMetrics([]);
+                    return;
+                }
+                const metricsData = parsedMetrics.data;
                 setPerformanceMetrics(metricsData.historical || []);
                 console.log('✅ Loaded performance metrics from server');
             } else {
@@ -95,8 +137,13 @@ const LLMMonitor = () => {
         try {
             const response = await fetch('http://localhost:3001/api/llm/health');
             if (response.ok) {
-                const healthData = await response.json();
-                setSystemHealth(healthData);
+                const parsedHealth = llmHealthSchema.safeParse(await response.json());
+                if (!parsedHealth.success) {
+                    console.error('Invalid system health response:', parsedHealth.error);
+                    setSystemHealth({});
+                    return;
+                }
+                setSystemHealth(parsedHealth.data);
                 console.log('✅ Updated system health from server');
             } else {
                 console.error('Failed to fetch system health:', response.status);
@@ -113,7 +160,12 @@ const LLMMonitor = () => {
         try {
             const response = await fetch('http://localhost:3001/api/llm/metrics');
             if (response.ok) {
-                const metricsData = await response.json();
+                const parsedRealtime = llmMetricsSchema.safeParse(await response.json());
+                if (!parsedRealtime.success) {
+                    console.error('Invalid real-time metrics response:', parsedRealtime.error);
+                    return;
+                }
+                const metricsData = parsedRealtime.data;
                 setRealTimeData(metricsData.realtime || []);
 
                 // Update live metrics summary from real data
@@ -385,7 +437,7 @@ const LLMMonitor = () => {
                                                             {key.replace(/_/g, ' ')}
                                                         </div>
                                                         <div className="text-white font-semibold">
-                                                            {typeof value === 'object' ? JSON.stringify(value) : String(value)}
+                                                            {String(value)}
                                                         </div>
                                                     </div>
                                                 ))}

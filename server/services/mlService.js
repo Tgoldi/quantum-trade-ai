@@ -185,19 +185,19 @@ class MLService {
      */
     async getSentimentScore(symbol, sentimentData) {
         try {
-            // In production, integrate with news APIs and social media
-            // For now, return neutral with some randomness for demo
-            const randomSentiment = Math.random() * 2 - 1; // -1 to 1
-
+            // In production, integrate with news APIs and social media.
+            // Until a real sentiment source exists, return a neutral, zero-confidence
+            // result so it never influences a trading decision.
             return {
                 model: 'sentiment_analysis',
-                score: randomSentiment,
-                signal: randomSentiment > 0.2 ? 'bullish' : randomSentiment < -0.2 ? 'bearish' : 'neutral',
-                confidence: Math.abs(randomSentiment),
+                score: 0,
+                signal: 'neutral',
+                confidence: 0,
+                simulated: true,
                 sources: {
-                    news: Math.random() * 2 - 1,
-                    twitter: Math.random() * 2 - 1,
-                    reddit: Math.random() * 2 - 1
+                    news: 0,
+                    twitter: 0,
+                    reddit: 0
                 }
             };
         } catch (error) {
@@ -368,18 +368,20 @@ class MLService {
         // Simplified pattern detection
         if (data.length < 30) return false;
         const recent = data.slice(-30);
-        // Implementation would analyze price peaks and troughs
-        return Math.random() < 0.1; // 10% chance for demo
+        // Not implemented: no real detection yet, so never report a pattern
+        return false;
     }
 
     detectDoubleBottom(data) {
         if (data.length < 20) return false;
-        return Math.random() < 0.1;
+        // Not implemented: no real detection yet
+        return false;
     }
 
     detectBullFlag(data) {
         if (data.length < 15) return false;
-        return Math.random() < 0.1;
+        // Not implemented: no real detection yet
+        return false;
     }
 
     aggregatePatternSignals(patterns) {
@@ -407,8 +409,8 @@ class MLService {
         return {
             currentPrice: await realTimeData.getCurrentPrice(symbol),
             historicalData: await realTimeData.getHistoricalBars(symbol, '1Day', null, null, 100),
-            volume: Math.random() * 10000000,
-            marketCap: Math.random() * 1000000000
+            volume: null,
+            marketCap: null
         };
     }
 
@@ -430,11 +432,12 @@ class MLService {
      * Get sentiment analysis data
      */
     async getSentimentAnalysis(symbol) {
-        // In production, fetch from sentiment APIs
+        // In production, fetch from sentiment APIs. Neutral placeholder until then.
         return {
-            overall: Math.random() * 2 - 1,
-            news: Math.random() * 2 - 1,
-            social: Math.random() * 2 - 1
+            overall: 0,
+            news: 0,
+            social: 0,
+            simulated: true
         };
     }
 

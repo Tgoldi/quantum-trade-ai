@@ -4,9 +4,25 @@ const { v4: uuidv4 } = require('uuid');
 
 class TradeJournalService {
     /**
-     * Add journal entry for a trade
+     * Parse a period like '30d', '2w', '3m' into a whole number of days.
+     * Throws on anything that does not match the strict pattern.
      */
-    async addJournalEntry(tradeId, entry) {
+    parsePeriodDays(period, fallbackDays = 30) {
+        if (period === undefined || period === null || period === '') return fallbackDays;
+        const match = /^(\d{1,3})([dwm])$/.exec(String(period));
+        if (!match) {
+            throw new Error('Invalid period format');
+        }
+        const n = parseInt(match[1], 10);
+        const mult = { d: 1, w: 7, m: 30 }[match[2]];
+        return n * mult;
+    }
+
+    /**
+     * Add journal entry for a trade
+     * When userId is provided, the trade must belong to a portfolio owned by that user.
+     */
+    async addJournalEntry(tradeId, entry, userId) {
         const {
             preTradeThoughts,
             strategy,
@@ -19,6 +35,20 @@ class TradeJournalService {
         } = entry;
 
         const journalId = uuidv4();
+
+        if (!userId) {
+            throw new Error('Authentication required');
+        }
+
+        const owned = await query(
+            `SELECT t.id FROM trades t
+         JOIN portfolios p ON p.id = t.portfolio_id
+         WHERE t.id = $1 AND p.user_id = $2`,
+            [tradeId, userId]
+        );
+        if (!owned || owned.length === 0) {
+            throw new Error('Trade not found');
+        }
 
         await query(
             `INSERT INTO trade_journal (
@@ -45,7 +75,7 @@ class TradeJournalService {
     /**
      * Update journal entry with post-trade analysis
      */
-    async updatePostTrade(journalId, postTradeData) {
+    async updatePostTrade(journalId, postTradeData, userId) {
         const {
             postTradeThoughts,
             whatWentWell,
@@ -54,6 +84,10 @@ class TradeJournalService {
             emotionalImpact,
             wouldRepeat
         } = postTradeData;
+
+        if (!userId) {
+            throw new Error('Authentication required');
+        }
 
         await query(
             `UPDATE trade_journal SET
@@ -64,7 +98,12 @@ class TradeJournalService {
         emotional_impact = $5,
         would_repeat = $6,
         updated_at = NOW()
-      WHERE id = $7`,
+      WHERE id = $7
+      AND trade_id IN (
+        SELECT t.id FROM trades t
+        JOIN portfolios p ON p.id = t.portfolio_id
+        WHERE p.user_id = $8
+      )`,
             [
                 postTradeThoughts,
                 whatWentWell,
@@ -72,7 +111,8 @@ class TradeJournalService {
                 lessons,
                 emotionalImpact,
                 wouldRepeat,
-                journalId
+                journalId,
+                userId
             ]
         );
     }
@@ -80,15 +120,22 @@ class TradeJournalService {
     /**
      * Analyze trading patterns and mistakes
      */
-    async analyzePerformance(portfolioId, timeframe = '30d') {
+    async analyzePerformance(portfolioId, timeframe = '30d', userId) {
+        if (!userId) {
+            throw new Error('Authentication required');
+        }
+        const days = this.parsePeriodDays(timeframe);
+        const params = [portfolioId, days, userId];
+        const ownerClause = 'AND t.portfolio_id IN (SELECT id FROM portfolios WHERE user_id = $3)';
         const trades = await query(
             `SELECT t.*, tj.*
        FROM trades t
        LEFT JOIN trade_journal tj ON t.id = tj.trade_id
        WHERE t.portfolio_id = $1
-       AND t.execution_time >= NOW() - INTERVAL '${timeframe}'
+       AND t.execution_time >= NOW() - make_interval(days => $2::int)
+       ${ownerClause}
        ORDER BY t.execution_time DESC`,
-            [portfolioId]
+            params
         );
 
         // Calculate win/loss patterns
@@ -447,7 +494,13 @@ class TradeJournalService {
     /**
      * Get trading statistics for period
      */
-    async getStatistics(portfolioId, period = '30d') {
+    async getStatistics(portfolioId, period = '30d', userId) {
+        if (!userId) {
+            throw new Error('Authentication required');
+        }
+        const days = this.parsePeriodDays(period);
+        const params = [portfolioId, days, userId];
+        const ownerClause = 'AND portfolio_id IN (SELECT id FROM portfolios WHERE user_id = $3)';
         const stats = await query(
             `SELECT
         COUNT(*) as total_trades,
@@ -459,8 +512,9 @@ class TradeJournalService {
         COUNT(DISTINCT DATE(execution_time)) as trading_days
       FROM trades
       WHERE portfolio_id = $1
-      AND execution_time >= NOW() - INTERVAL '${period}'`,
-            [portfolioId]
+      AND execution_time >= NOW() - make_interval(days => $2::int)
+      ${ownerClause}`,
+            params
         );
 
         return stats[0];
@@ -469,14 +523,20 @@ class TradeJournalService {
     /**
      * Export journal entries
      */
-    async exportJournal(portfolioId, format = 'json') {
+    async exportJournal(portfolioId, format = 'json', userId) {
+        if (!userId) {
+            throw new Error('Authentication required');
+        }
+        const params = [portfolioId, userId];
+        const ownerClause = 'AND t.portfolio_id IN (SELECT id FROM portfolios WHERE user_id = $2)';
         const entries = await query(
             `SELECT t.*, tj.*
        FROM trades t
        LEFT JOIN trade_journal tj ON t.id = tj.trade_id
        WHERE t.portfolio_id = $1
+       ${ownerClause}
        ORDER BY t.execution_time DESC`,
-            [portfolioId]
+            params
         );
 
         if (format === 'csv') {
@@ -508,8 +568,16 @@ class TradeJournalService {
             entry.lessons || ''
         ]);
 
+        const escapeCell = (cell) => {
+            let s = cell === null || cell === undefined ? '' : String(cell);
+            if (/^[=+\-@\t\r]/.test(s)) {
+                s = "'" + s;
+            }
+            return `"${s.replace(/"/g, '""')}"`;
+        };
+
         return [headers, ...rows]
-            .map(row => row.map(cell => `"${cell}"`).join(','))
+            .map(row => row.map(escapeCell).join(','))
             .join('\n');
     }
 }

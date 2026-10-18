@@ -11,10 +11,10 @@ The original error was caused by a Ruby/Rails server running on port 3001 instea
 The backend now connects to your Supabase PostgreSQL database instead of localhost.
 
 **Configuration Applied:**
-- Host: `aws-1-ap-southeast-1.pooler.supabase.com`
+- Host: Supabase connection pooler host (set via `DB_HOST` in `server/.env`)
 - Port: `6543` (connection pooler)
 - Database: `postgres`
-- User: `postgres.ngwbwanpamfqoaitofih`
+- User: Supabase pooler user (set via `DB_USER` in `server/.env`)
 - SSL: Enabled
 - Password: Set ✅
 
@@ -85,7 +85,7 @@ Successfully registered a test user:
            │
 ┌──────────▼────────────────────┐
 │  Supabase PostgreSQL          │
-│  ngwbwanpamfqoaitofih         │
+│  (project configured in .env) │
 │  Region: Singapore            │
 │                               │
 │  - Database Tables ✅         │
@@ -204,7 +204,7 @@ http://localhost:5173
 ## 📊 Database Stats
 
 ### Supabase Project
-- **URL:** https://ngwbwanpamfqoaitofih.supabase.co
+- **URL:** your Supabase project URL (see the Supabase dashboard)
 - **Region:** Southeast Asia (Singapore)
 - **Database:** PostgreSQL 15+
 - **Tables:** 12 tables created

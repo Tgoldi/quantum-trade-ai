@@ -261,9 +261,10 @@ class PaperTradingService {
      * Get trade history
      */
     async getTradeHistory(portfolioId, limit = 100) {
+        const safeLimit = Math.min(Math.max(parseInt(limit, 10) || 100, 1), 500);
         return await query(
             'SELECT * FROM trades WHERE portfolio_id = $1 ORDER BY execution_time DESC LIMIT $2',
-            [portfolioId, limit]
+            [portfolioId, safeLimit]
         );
     }
 
