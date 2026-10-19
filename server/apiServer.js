@@ -311,6 +311,16 @@ app.post('/api/trade', authenticate, async (req, res) => {
     try {
         const { portfolioId, symbol, side, quantity, orderType, limitPrice, strategy } = req.body;
 
+        // Verify the target portfolio belongs to the authenticated user
+        const [ownedPortfolio] = await query(
+            'SELECT id FROM portfolios WHERE id = $1 AND user_id = $2',
+            [portfolioId, req.user.userId]
+        );
+
+        if (!ownedPortfolio) {
+            return res.status(404).json({ error: 'Portfolio not found' });
+        }
+
         // Validate trade with risk management
         const validation = await riskManagementService.validateTrade(portfolioId, {
             symbol,
